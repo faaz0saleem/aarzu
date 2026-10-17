@@ -152,6 +152,7 @@ async function api(req, res, url) {
     if (Object.keys(errors).length) return json(req, res, 422, { error: "Please check the highlighted fields.", errors });
 
     const r = resolveCoupon(b.code, c.phone);
+    if (r.error) return json(req, res, 422, { error: r.error, errors: { code: r.error } });
     const quote = priceCart(b.items || [], catalog.byId, store(), r.coupon);
     if (!quote.items.length) return fail(req, res, 400, "Your bag is empty.");
     for (const i of quote.items) {

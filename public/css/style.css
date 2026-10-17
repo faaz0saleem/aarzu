@@ -666,6 +666,8 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 500; line-height: 1.05;
 @keyframes wobble { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-14deg) scale(1.08); } 94% { transform: rotate(12deg) scale(1.08); } }
 .fab .top { background: #fff; color: var(--ink); width: 46px; height: 46px; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; }
 .fab .top.on { opacity: 1; pointer-events: all; }
+body:has(.sticky-buy.on) .fab, body:has(.sticky-buy.on) .social-proof { bottom: calc(84px + env(safe-area-inset-bottom)); }
+.fab, .social-proof { transition: bottom .4s var(--ease), transform .6s var(--spring); }
 
 /* -------------------------------------------------------------- checkout */
 .checkout { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(24px, 4vw, 54px); padding-top: 30px; align-items: start; }

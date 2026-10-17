@@ -212,8 +212,10 @@ function waitlists(root) {
 }
 
 // ================================================================== SHOP
+let filtersOpen = false; // keeps the mobile filter drawer open while filters re-render
 const FILTERS = ["gender", "category", "collection", "fabric", "pieces", "occasion", "color", "q", "min", "max", "sort", "instock"];
-function shop(main, { url, go }) {
+function shop(main, { url, go, replace }) {
+  if (!replace) filtersOpen = false;
   const q = Object.fromEntries(FILTERS.map((k) => [k, url.searchParams.get(k) || ""]));
   const all = withImg();
   const title = q.q ? `“${esc(q.q)}”` : q.collection === "originals" ? "Aarzu Originals" : q.collection === "designer" ? "The Designer Edit" : q.category === "accessory" ? "Dupattas & Shawls" : q.occasion ? `${esc(q.occasion)} Edit` : q.gender === "women" ? "Women" : q.gender === "men" ? "Men" : "Shop All";
@@ -254,6 +256,7 @@ function shop(main, { url, go }) {
       <div class="load-more" id="more"></div>
     </div></div>`;
 
+  if (filtersOpen) $("#filters", main).classList.add("on");
   const set = (k, v) => { const u = new URL(location.href); v ? u.searchParams.set(k, v) : u.searchParams.delete(k); go(u.pathname + u.search, true); };
   let shown = 16;
   const list = all.filter((p) => {
@@ -302,8 +305,8 @@ function shop(main, { url, go }) {
     const d = e.target.closest("[data-cols]");
     if (d) { $("#grid", main).style.setProperty("--cols", d.dataset.cols); $$("[data-cols]", main).forEach((x) => x.classList.toggle("on", x === d)); }
     if (e.target.closest("#clear-f")) go(location.pathname, true);
-    if (e.target.closest("#open-f")) $("#filters", main).classList.add("on");
-    if (e.target.closest("[data-close-f]")) $("#filters", main).classList.remove("on");
+    if (e.target.closest("#open-f")) { filtersOpen = true; $("#filters", main).classList.add("on"); }
+    if (e.target.closest("[data-close-f]")) { filtersOpen = false; $("#filters", main).classList.remove("on"); }
   });
 }
 
@@ -477,6 +480,11 @@ function checkout(main, { go }) {
       (await import("./core.js")).setCoupon(null);
       go(`/order/${r.id}`);
     } catch (err) {
+      if (err.data?.errors?.code) {
+        (await import("./core.js")).setCoupon(null);
+        btn.disabled = false; sum();
+        return toast(`${esc(err.data.errors.code)} We've removed the code. Please check your new total.`, { icon: "x", ms: 6000 });
+      }
       for (const [k, m] of Object.entries(err.data?.errors || {})) { const fd = $(`[data-k="${k}"]`, f); if (fd) { fd.classList.add("err"); $(".msg", fd).textContent = m; } }
       $(".field.err input, .field.err textarea", f)?.focus();
       toast(esc(err.message), { icon: "x" });

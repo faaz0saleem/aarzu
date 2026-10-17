@@ -253,28 +253,28 @@ async function socialProof() {
 let cleanup = null;
 export function go(href, replace) {
   if (replace) history.replaceState({}, "", href); else history.pushState({}, "", href);
-  render();
+  render({ replace });
 }
 
-async function render() {
+// Each page renders into a fresh view element so listeners never pile up on #main.
+async function render({ replace = false } = {}) {
   const url = new URL(location.href);
   cleanup?.();
   cleanup = null;
   closeOverlay();
-  const main = $("#main");
+  const view = document.createElement("div");
+  if (!replace) view.className = "page-enter";
+  $("#main").replaceChildren(view);
   let match = null, params = [];
   for (const [re, fn] of routes) { const m = url.pathname.match(re); if (m) { match = fn; params = m.slice(1); break; } }
-  main.classList.remove("page-enter");
-  void main.offsetWidth;
-  main.classList.add("page-enter");
-  const res = await (match || routes.at(-1)[1])(main, { url, params, go });
+  const res = await (match || routes.at(-1)[1])(view, { url, params, go, replace });
   cleanup = typeof res === "function" ? res : null;
   $$("[data-nav]").forEach((a) => {
     const k = a.dataset.nav, q = url.searchParams;
     a.classList.toggle("active", q.get("gender") === k || q.get("collection") === k || q.get("category") === k || url.pathname === "/" + k);
   });
-  scrollTo({ top: 0, behavior: "instant" });
-  reveal(main);
+  if (!replace) scrollTo({ top: 0, behavior: "instant" });
+  reveal(view);
 }
 
 document.addEventListener("click", (e) => {
@@ -287,7 +287,7 @@ document.addEventListener("click", (e) => {
     go(a.getAttribute("href"));
   }
 });
-addEventListener("popstate", render);
+addEventListener("popstate", () => render());
 
 // First visit: offer the wheel once (not during checkout), plus on exit intent.
 function wheelPrompt() {
