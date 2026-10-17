@@ -51,7 +51,8 @@ export function transform(rows, { now = Date.now() } = {}) {
     const type = /unstitch/i.test(String(r.type) + " " + r.name) ? "unstitched" : "ready-to-wear";
     const pieces = Number(r.pieces) || guessPieces(all) || (type === "unstitched" ? 3 : 2);
     const fabric = titleCase(r.fabric || guessFabric(all) || (gender === "men" ? "Cotton" : "Lawn")).replace("Wash & Wear", "Wash & Wear");
-    const deco = /embroider/i.test(all) ? "Embroidered" : /print/i.test(all) ? "Printed" : /jacquard/i.test(all) ? "Jacquard" : /dyed|solid|plain/i.test(all) ? "Solid" : null;
+    const deco0 = /embroider/i.test(all) ? "Embroidered" : /print/i.test(all) ? "Printed" : /jacquard/i.test(all) ? "Jacquard" : /dyed|solid|plain/i.test(all) ? "Solid" : null;
+    const deco = deco0 && fabric.toLowerCase().includes(deco0.toLowerCase()) ? null : deco0;
     const key = hash(r.url || r.name);
     const pool = gender === "men" ? MEN_NAMES : NAMES;
     let k = parseInt(key.slice(0, 8), 16) % pool.length, tries = 0;
