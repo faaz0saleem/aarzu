@@ -1,0 +1,15 @@
+{
+  "name": "aarzu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aarzu — Pakistani shalwar kameez storefront",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "generate": "node scripts/generate-originals.mjs",
+    "import": "node scripts/import-brands.mjs",
+    "test": "node --test scripts/test/"
+  }
+}

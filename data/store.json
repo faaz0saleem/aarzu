@@ -1,0 +1,170 @@
+{
+  "name": "Aarzu",
+  "urdu": "آرزو",
+  "tagline": "Wear your wish",
+  "currency": "Rs",
+  "freeShippingThreshold": 4999,
+  "shippingFee": 250,
+  "dispatchCutoffHour": 16,
+  "returnDays": 7,
+  "multiBuy": [
+    {
+      "minItems": 2,
+      "percent": 5
+    },
+    {
+      "minItems": 3,
+      "percent": 10
+    }
+  ],
+  "bundle": {
+    "percent": 15,
+    "label": "Complete the Look"
+  },
+  "launchOffer": {
+    "code": "AARZU10",
+    "headline": "Launch season: 10% off your first order",
+    "endsAt": "2026-11-30T23:59:59+05:00"
+  },
+  "coupons": {
+    "AARZU10": {
+      "type": "percent",
+      "value": 10,
+      "label": "Welcome 10% off",
+      "firstOrderOnly": true
+    },
+    "SPIN5": {
+      "type": "percent",
+      "value": 5,
+      "label": "Wheel prize: 5% off"
+    },
+    "SPIN10": {
+      "type": "percent",
+      "value": 10,
+      "label": "Wheel prize: 10% off"
+    },
+    "SPIN15": {
+      "type": "percent",
+      "value": 15,
+      "label": "Wheel prize: 15% off",
+      "minSubtotal": 6000
+    },
+    "FREEDEL": {
+      "type": "freeship",
+      "label": "Wheel prize: free delivery"
+    }
+  },
+  "wheel": [
+    {
+      "label": "5% OFF",
+      "code": "SPIN5",
+      "weight": 30,
+      "color": "#E8336D"
+    },
+    {
+      "label": "FREE DELIVERY",
+      "code": "FREEDEL",
+      "weight": 24,
+      "color": "#0F7C80"
+    },
+    {
+      "label": "10% OFF",
+      "code": "SPIN10",
+      "weight": 20,
+      "color": "#F2A900"
+    },
+    {
+      "label": "5% OFF",
+      "code": "SPIN5",
+      "weight": 8,
+      "color": "#7A1530"
+    },
+    {
+      "label": "15% OFF",
+      "code": "SPIN15",
+      "weight": 8,
+      "color": "#1C3F94"
+    },
+    {
+      "label": "FREE DELIVERY",
+      "code": "FREEDEL",
+      "weight": 10,
+      "color": "#2E7D4F"
+    }
+  ],
+  "contact": {
+    "whatsapp": "923001234567",
+    "phone": "+92 300 123 4567",
+    "email": "hello@aarzu.pk",
+    "address": "Gulberg III, Lahore, Pakistan",
+    "hours": "Mon–Sat, 10am – 8pm PKT"
+  },
+  "social": {
+    "instagram": "https://instagram.com/",
+    "facebook": "https://facebook.com/",
+    "tiktok": "https://tiktok.com/",
+    "youtube": "https://youtube.com/"
+  },
+  "cities": [
+    {
+      "name": "Lahore",
+      "days": "1–2"
+    },
+    {
+      "name": "Karachi",
+      "days": "2–3"
+    },
+    {
+      "name": "Islamabad",
+      "days": "2–3"
+    },
+    {
+      "name": "Rawalpindi",
+      "days": "2–3"
+    },
+    {
+      "name": "Faisalabad",
+      "days": "2–3"
+    },
+    {
+      "name": "Multan",
+      "days": "2–3"
+    },
+    {
+      "name": "Peshawar",
+      "days": "2–4"
+    },
+    {
+      "name": "Quetta",
+      "days": "3–5"
+    },
+    {
+      "name": "Hyderabad",
+      "days": "2–4"
+    },
+    {
+      "name": "Sialkot",
+      "days": "2–3"
+    },
+    {
+      "name": "Gujranwala",
+      "days": "2–3"
+    },
+    {
+      "name": "Bahawalpur",
+      "days": "3–4"
+    },
+    {
+      "name": "Sukkur",
+      "days": "3–4"
+    },
+    {
+      "name": "Abbottabad",
+      "days": "3–4"
+    },
+    {
+      "name": "Other city",
+      "days": "3–6"
+    }
+  ]
+}
