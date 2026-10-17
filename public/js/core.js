@@ -1,6 +1,6 @@
 // Shared state, helpers, animations and UI pieces for the Aarzu storefront.
 import { icon } from "./icons.js";
-import { priceCart, money } from "./pricing.js";
+import { priceCart, money, lineKey } from "./pricing.js";
 
 export { icon, money };
 
@@ -27,7 +27,34 @@ const listeners = new Set();
 export const state = {
   products: [], media: [], store: null, byId: {}, bySlug: {},
   cart: load("az_cart", []), wish: load("az_wish", []), recent: load("az_recent", []), coupon: load("az_coupon", null),
+  credits: load("az_credits", []),
 };
+
+// ------------------------------------------------------------------ feature extension points
+// Feature modules in public/js/features/ register into these. See features/index.js.
+export const ext = { cardExtras: [], slots: {}, links: [], adminTabs: [], lineOptions: [], routes: [], headerTools: [], routeHooks: [] };
+export const registerCardExtra = (fn) => ext.cardExtras.push(fn); // fn(product) -> html inside every product card
+export const registerSlot = (name, fn) => (ext.slots[name] ||= []).push(fn); // fn(el, data) fills <div data-slot="name">
+export const registerLink = (link) => ext.links.push(link); // { where: "shop"|"help"|"aarzu"|"menu", label, href }
+export const registerAdminTab = (tab) => ext.adminTabs.push(tab); // { key, label, render(el, call) }
+export const registerLineOption = (fn) => ext.lineOptions.push(fn); // fn(product, pageEl) -> { addons?, meta? }; throw Error(msg) to block add
+export const registerRoute = (re, fn) => ext.routes.push([re, fn]); // fn(view, ctx) like core pages
+export const registerHeaderTool = (fn) => ext.headerTools.push(fn); // fn() -> html placed before the search icon
+export const registerRouteHook = (fn) => ext.routeHooks.push(fn); // fn(url, view) after every page render
+export function fillSlots(root, data = {}) {
+  $$("[data-slot]", root).forEach((el) => {
+    if (el.dataset.filled) return;
+    el.dataset.filled = "1";
+    for (const fn of ext.slots[el.dataset.slot] || []) {
+      try { fn(el, { ...data, ...el.dataset }); } catch (e) { console.error(`[slot ${el.dataset.slot}]`, e); }
+    }
+  });
+}
+export let navigate = (href) => { location.href = href; };
+export function setNavigate(fn) { navigate = fn; }
+export const listed = () => state.products.filter((p) => !p.unlisted);
+// Add-on labels (e.g. stitching) and a feature-provided meta.summary under each bag/checkout line
+export const lineExtras = (i) => (i.addons?.length || i.meta?.summary ? `<div class="m line-extra">${[...(i.addons || []).map((a) => `${esc(a.label)} +${rs(a.price)}`), i.meta?.summary ? esc(i.meta.summary) : ""].filter(Boolean).join(" · ")}</div>` : "");
 export const on = (fn) => (listeners.add(fn), () => listeners.delete(fn));
 export const emit = (what) => listeners.forEach((fn) => fn(what));
 
@@ -41,20 +68,29 @@ export async function boot() {
   state.cart = state.cart.filter((l) => state.byId[l.id]);
 }
 
-export const quote = () => priceCart(state.cart, state.byId, state.store, state.coupon);
-export function addToCart(id, size, qty = 1) {
-  const l = state.cart.find((x) => x.id === id && x.size === size);
+export const quote = () => priceCart(state.cart, state.byId, state.store, state.coupon, { credits: state.credits });
+// extra = { addons: [{ key, option }], meta: {...} } — lines with different extras stay separate
+export function addToCart(id, size, qty = 1, extra = {}) {
+  const line = { id, size, qty, ...(extra.addons?.length ? { addons: extra.addons } : {}), ...(extra.meta ? { meta: extra.meta } : {}) };
+  const key = lineKey(line);
+  const l = state.cart.find((x) => lineKey(x) === key);
   if (l) l.qty = Math.min(10, l.qty + qty);
-  else state.cart.push({ id, size, qty });
+  else state.cart.push(line);
   save("az_cart", state.cart);
   emit("cart");
 }
-export function setQty(id, size, qty) {
-  state.cart = state.cart.map((l) => (l.id === id && l.size === size ? { ...l, qty } : l)).filter((l) => l.qty > 0);
+export function setQty(key, qty) {
+  state.cart = state.cart.map((l) => (lineKey(l) === key ? { ...l, qty } : l)).filter((l) => l.qty > 0);
   save("az_cart", state.cart);
   emit("cart");
 }
 export function clearCart() { state.cart = []; save("az_cart", []); emit("cart"); }
+// credit = { key, label, amount, payload } (gift card, reward points ...); null removes it
+export function setCredit(key, credit) {
+  state.credits = state.credits.filter((c) => c.key !== key).concat(credit ? [{ ...credit, key }] : []);
+  save("az_credits", state.credits);
+  emit("cart");
+}
 export function toggleWish(id) {
   state.wish = state.wish.includes(id) ? state.wish.filter((x) => x !== id) : [id, ...state.wish];
   save("az_wish", state.wish);
@@ -102,6 +138,7 @@ export function card(p, opts = {}) {
       ${badges(p)}
     </a>
     <button class="wish ${wished ? "on" : ""}" data-wish="${p.id}" aria-label="Add to wishlist">${icon("heart", "", 18)}</button>
+    ${ext.cardExtras.map((fn) => { try { return fn(p) || ""; } catch { return ""; } }).join("")}
     <div class="quick">
       ${unstitched ? `<button class="btn rani sm" data-quick="${p.id}" data-size="${esc(p.sizes[0])}" ${stockLeft(p) ? "" : "disabled"}>${icon("shopping-bag", "", 16)} Add to bag</button>`
         : `<span class="lbl">Quick add · choose size</span>${p.sizes.map((s) => `<button class="sz" data-quick="${p.id}" data-size="${esc(s)}" ${(p.stock?.[s] ?? 0) > 0 ? "" : "disabled"}>${esc(s)}</button>`).join("")}`}

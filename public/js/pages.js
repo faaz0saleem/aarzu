@@ -1,7 +1,7 @@
 // Page renderers. Each takes (main, ctx) and may return a cleanup function.
-import { $, $$, esc, rs, img, icon, api, state, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, flyToCart, pushRecent, quote, clearCart, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish } from "./core.js";
+import { $, $$, esc, rs, img, icon, api, state, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, flyToCart, pushRecent, quote, clearCart, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish, ext, listed, lineExtras, fillSlots, setCredit } from "./core.js";
 
-const P = () => state.products;
+const P = () => listed();
 const withImg = (f = () => true) => P().filter((p) => p.images?.length && f(p));
 const suits = (p) => p.category !== "accessory";
 const pickImgs = (list, n) => list.slice(0, n).map((p) => p.images[0]);
@@ -100,6 +100,7 @@ async function home(main) {
     <div class="occasions">${OCCASIONS.map(([o, u, c], i) => { const im = catImg((p) => (p.occasions || []).includes(o)); return `<a class="occ" href="/shop?occasion=${encodeURIComponent(o)}" data-link data-reveal style="--i:${i};--bg:${c}">${im ? `<img src="${esc(img(im))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}<span class="ur">${u}</span><b>${o}</b><span>${P().filter((p) => (p.occasions || []).includes(o)).length} styles →</span></a>`; }).join("")}</div>
   </section>
 
+  <div data-slot="home-mid"></div>
   ${designer.length ? `<section class="sec wrap" style="padding-top:0">
     <div class="sec-head-row" data-reveal><div><span class="eyebrow">The Designer Edit</span><h2>Designer favourites, <em style="color:var(--rani)">${rs(1000)} less</em></h2><p style="margin:8px 0 0;color:var(--ink-2)">The season's most-loved designer suits, hand-picked and quality-checked by our team. Every piece is ${rs(1000)} under its retail price.</p></div><a class="link under" href="/shop?collection=designer" data-link>View all ${icon("arrow-right", "", 16)}</a></div>
     <div class="grid" style="--cols:4">${designer.sort((a, b) => b.compareAt - b.price - (a.compareAt - a.price)).slice(0, 8).map((p, i) => card(p, { i })).join("")}</div>
@@ -125,6 +126,7 @@ async function home(main) {
     <div class="crafts">${CRAFTS.map(([t, u, c, d, svg], i) => `<article class="craft" data-reveal style="--i:${i};--c:${c};--tex:${tex(svg)}"><div class="tex"></div><span class="ur">${u}</span><h4>${t}</h4><p>${d}</p></article>`).join("")}</div>
   </section>
 
+  <div data-slot="home-end"></div>
   <section class="wrap"><div class="news" data-reveal="zoom"><div class="big-ur">آرزو</div><span class="eyebrow">Join the Aarzu family</span><h2>Get first look at every <em class="grad-text">drop</em></h2><p>New collections, restocks and member-only offers, straight to your inbox or WhatsApp. No spam, ever.</p>
     <form class="waitlist light" data-wl="newsletter"><input name="contact" placeholder="Email or WhatsApp number" aria-label="Email or WhatsApp"><button class="btn rani sm">Subscribe</button></form><p class="wl-msg" style="margin-top:12px;font-size:.88rem"></p></div></section>`;
 
@@ -337,8 +339,10 @@ function product(main, { params, go }) {
       <div id="live"></div>
       ${p.sizes.length > 1 ? `<div><div class="opt-label"><span>Size: <span id="sz-l">${size || "choose"}</span></span><button id="sg">Size guide</button></div><div class="sizes" id="sizes">${p.sizes.map((z) => `<button data-sz="${esc(z)}" ${left(z) > 0 ? "" : "disabled"}>${esc(z)}</button>`).join("")}</div></div>` : ""}
       <div id="stock"></div>
+      <div data-slot="pdp-options" data-pid="${p.id}"></div>
       <div class="buy-row"><div class="qty"><button data-qd="-1" aria-label="Less">${icon("minus", "", 16)}</button><span id="qty">1</span><button data-qd="1" aria-label="More">${icon("plus", "", 16)}</button></div><button class="btn rani" id="add" ${stockLeft(p) ? "" : "disabled"}>${icon("shopping-bag", "", 18)} ${stockLeft(p) ? `Add to bag · ${rs(p.price)}` : "Sold out"}</button></div>
       <div class="buy-alt"><button class="btn ghost" id="buy">Buy it now</button><a class="btn wa" href="https://wa.me/${s.contact.whatsapp}?text=${msg}" target="_blank" rel="noopener">${icon("whatsapp", "", 18)} Order on WhatsApp</a></div>
+      <div data-slot="pdp-actions" data-pid="${p.id}"></div>
       ${nextTier && q.suitQty >= 1 ? `<div class="nudge">${icon("sparkles")}<span>Add this and you'll have <b>${q.suitQty + 1} suits</b>: <b>${nextTier.percent}% off</b> all of them.</span></div>` : suitsOnly(p) && s.multiBuy?.length ? `<div class="nudge">${icon("badge-percent")}<span>Buy <b>${s.multiBuy[0].minItems} suits</b>, save <b>${s.multiBuy[0].percent}%</b> · Buy <b>${s.multiBuy.at(-1).minItems}+</b>, save <b>${s.multiBuy.at(-1).percent}%</b></span></div>` : ""}
       <div class="delivery" id="delivery"></div>
       <div>
@@ -346,6 +350,7 @@ function product(main, { params, go }) {
         <details class="acc"><summary>What's included ${icon("plus", "", 16)}</summary><div class="body"><ul>${(p.details || []).map((d) => `<li>${esc(d)}</li>`).join("")}</ul></div></details>
         <details class="acc"><summary>Fabric & care ${icon("plus", "", 16)}</summary><div class="body"><ul><li>Fabric: ${esc(p.fabric)}</li><li>Gentle hand or machine wash in cold water, separately.</li><li>Dry in shade, iron on the reverse side.</li><li>Slight colour variation from photos may occur due to lighting.</li></ul></div></details>
         <details class="acc"><summary>Delivery & exchange ${icon("plus", "", 16)}</summary><div class="body"><ul><li>Free delivery over ${rs(s.freeShippingThreshold)}, otherwise ${rs(s.shippingFee)}.</li><li>Cash on delivery available nationwide.</li><li>${s.returnDays}-day exchange on unworn items with tags.</li></ul></div></details>
+        <div data-slot="pdp-after" data-pid="${p.id}"></div>
       </div>
     </div></div>
   ${looks.length && suitsOnly(p) ? `<section class="sec" style="padding-bottom:0"><div class="sec-head-row"><div><span class="eyebrow">${esc(s.bundle.label)}</span><h2>Finish it with a <em style="color:var(--rani)">dupatta</em></h2><p style="margin:6px 0 0;color:var(--ink-2)">${s.bundle.percent}% off any accessory bought with a suit, applied automatically.</p></div></div><div class="grid" style="--cols:4">${looks.map((x, i) => card(x, { i })).join("")}</div></section>` : ""}
@@ -372,7 +377,15 @@ function product(main, { params, go }) {
   const add = (buy) => {
     if (!size) { const el = $("#sizes", main); el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); toast("Please choose your size first", { icon: "ruler" }); return; }
     if (left(size) < qty) return toast(`Only ${left(size)} left in ${esc(size)}`);
-    addToCart(p.id, size, qty);
+    const extra = { addons: [], meta: undefined };
+    try {
+      for (const fn of ext.lineOptions) {
+        const o = fn(p, main) || {};
+        if (o.addons) extra.addons.push(...o.addons);
+        if (o.meta) extra.meta = { ...(extra.meta || {}), ...o.meta };
+      }
+    } catch (err) { return toast(esc(err.message), { icon: "x" }); }
+    addToCart(p.id, size, qty, extra);
     if (buy) return go("/checkout");
     flyToCart($("#main-img", main));
     toast(`<b>${esc(p.title)}</b> added to your bag`, { img: p.images[0], action: "View bag", actionData: "open-cart" });
@@ -443,6 +456,7 @@ function checkout(main, { go }) {
     <div class="co-sec"><h3><span class="n">2</span>Delivery</h3><div class="row2"><div class="field" data-k="city"><label>City</label><select name="city">${s.cities.map((c) => `<option ${c.name === (saved.city || localStorage.getItem("az_city")) ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select><span class="msg"></span></div><div class="field"><label>Arrives</label><input id="eta" disabled></div></div>
       <div class="field" data-k="address"><label>Full address</label><textarea name="address" autocomplete="street-address" placeholder="House, street, area, landmark">${esc(saved.address || "")}</textarea><span class="msg"></span></div>
       <div class="field"><label>Order notes (optional)</label><input name="notes" placeholder="e.g. call before delivery"></div></div>
+    <div data-slot="checkout-extras"></div>
     <div class="co-sec" style="border:0"><h3><span class="n">3</span>Payment</h3>
       ${[["cod", "Cash on delivery", "Pay in cash when your order arrives", "Most popular"], ["bank", "Bank transfer", "We'll WhatsApp you our account details", ""], ["wallet", "JazzCash / Easypaisa", "Pay to our mobile wallet after ordering", ""]].map(([v, b, t, tag], i) => `<label class="pay-opt"><input type="radio" name="payment" value="${v}" ${i ? "" : "checked"}><span><b>${b}</b><small>${t}</small></span>${tag ? `<span class="tag">${tag}</span>` : "<span></span>"}</label>`).join("")}
       <button class="btn rani block" id="place" style="margin-top:20px;min-height:58px">${icon("lock", "", 16)} Place order</button>
@@ -452,13 +466,15 @@ function checkout(main, { go }) {
   const f = $("#co", main);
   const sum = () => {
     const q = quote();
-    $("#summary", main).innerHTML = `<h3>Order summary</h3><div class="sum-items">${q.items.map((i) => `<div class="sum-item"><div class="ph"><img src="${esc(img(i.image))}" alt="" referrerpolicy="no-referrer"><span class="q">${i.qty}</span></div><div><b>${esc(i.title)}</b><span style="color:var(--muted)">${esc(i.size)}</span></div><span>${rs(i.line)}</span></div>`).join("")}</div>
+    $("#summary", main).innerHTML = `<h3>Order summary</h3><div class="sum-items">${q.items.map((i) => `<div class="sum-item"><div class="ph"><img src="${esc(img(i.image))}" alt="" referrerpolicy="no-referrer"><span class="q">${i.qty}</span></div><div><b>${esc(i.title)}</b><span style="color:var(--muted)">${esc(i.size)}</span>${lineExtras(i)}</div><span>${rs(i.line)}</span></div>`).join("")}</div>
+      <div data-slot="checkout-credits"></div>
       <form class="coupon" id="cpn"><input name="code" placeholder="Discount code" value="${esc(state.coupon?.code || "")}"><button class="btn sm ghost">Apply</button></form>
       ${q.couponRejected ? `<small style="color:#D0313F">${esc(q.couponRejected)}</small>` : ""}
       <div class="sumline"><span>Subtotal</span><span>${rs(q.subtotal)}</span></div>${q.discounts.map((d) => `<div class="sumline disc"><span>${esc(d.label)}</span><span>−${rs(d.amount)}</span></div>`).join("")}
-      <div class="sumline"><span>Delivery</span><span>${q.shipping ? rs(q.shipping) : "FREE"}</span></div><div class="sumline total"><span>Total</span><span>${rs(q.total)}</span></div>
+      <div class="sumline"><span>Delivery</span><span>${q.shipping ? rs(q.shipping) : "FREE"}</span></div>${q.credits.map((c) => `<div class="sumline disc"><span>${esc(c.label)}</span><span>−${rs(c.amount)}</span></div>`).join("")}<div class="sumline total"><span>Total</span><span>${rs(q.total)}</span></div>
       ${q.savings > 0 ? `<div class="savings-pill">${icon("badge-percent", "", 16)} You're saving ${rs(q.savings)}</div>` : ""}
       <div class="trust-mini"><span>${icon("shield-check", "", 14)} Secure checkout</span><span>${icon("refresh-ccw", "", 14)} ${s.returnDays}-day exchange</span></div>`;
+    fillSlots($("#summary", main), { quote: q, refresh: sum });
     $("#place", main).innerHTML = `${icon("lock", "", 16)} Place order · ${rs(q.total)}`;
     $("#cpn", main).onsubmit = async (e) => { e.preventDefault(); const code = e.target.code.value.trim(); try { const c = code ? await api("/api/coupon", { code, phone: f.phone.value }) : null; (await import("./core.js")).setCoupon(c); sum(); if (c) toast("Code applied ✨"); } catch (err) { toast(esc(err.message)); } };
   };
@@ -473,13 +489,18 @@ function checkout(main, { go }) {
     btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Placing order…`;
     const customer = { name: f.name.value, phone: f.phone.value, email: f.email.value, city: f.city.value, address: f.address.value, notes: f.notes.value };
     try {
-      const r = await api("/api/orders", { customer, payment: f.payment.value, items: state.cart, code: state.coupon?.code });
+      const r = await api("/api/orders", { customer, payment: f.payment.value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
       localStorage.setItem("az_cust", JSON.stringify({ name: customer.name, phone: customer.phone, email: customer.email, city: customer.city, address: customer.address }));
       sessionStorage.setItem("az_last", JSON.stringify({ ...r, quote: quote(), customer }));
       clearCart();
       (await import("./core.js")).setCoupon(null);
+      for (const c of state.credits) setCredit(c.key, null);
       go(`/order/${r.id}`);
     } catch (err) {
+      if (err.data?.errors?.credit) {
+        btn.disabled = false; sum();
+        return toast(esc(err.data.errors.credit), { icon: "x", ms: 6000 });
+      }
       if (err.data?.errors?.code) {
         (await import("./core.js")).setCoupon(null);
         btn.disabled = false; sum();
@@ -501,6 +522,7 @@ function success(main, { params }) {
   main.innerHTML = `<section class="wrap success"><div class="seal"><span>${icon("check", "", 44)}</span></div><span class="eyebrow">Shukriya${mine ? `, ${esc(o.customer.name.split(" ")[0])}` : ""}!</span><h1>Your aarzu is <em class="grad-text">on its way</em></h1>
     <span class="oid">${esc(params[0])}</span><p style="max-width:520px;color:var(--ink-2);margin:0">We've received your order${mine ? ` of <b>${rs(o.total)}</b>` : ""}. Our team will confirm it on WhatsApp shortly. Keep your order number to track it anytime.</p>
     ${pay}
+    <div data-slot="success-extras" data-order="${esc(params[0])}" style="width:min(720px,100%)"></div>
     <div class="timeline">${["Placed", "Confirmed", "Dispatched", "Delivered"].map((t, i) => `<div class="${i ? "" : "done"}"><b>${i ? i + 1 : icon("check", "", 16)}</b>${t}</div>`).join("")}</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:20px"><a class="btn wa" href="https://wa.me/${s.contact.whatsapp}?text=${encodeURIComponent(`Assalam o Alaikum! My Aarzu order number is ${params[0]}.`)}" target="_blank" rel="noopener">${icon("whatsapp", "", 18)} Confirm on WhatsApp</a><a class="btn ghost" href="/track?id=${esc(params[0])}" data-link>Track order</a><a class="btn rani" href="/shop" data-link>Keep shopping</a></div></section>`;
   setTimeout(() => confetti(220), 300);
@@ -583,13 +605,16 @@ function admin(main) {
   };
   const dash = async (tab = "orders") => {
     const s = await call("/api/admin/summary");
-    const body = tab === "orders" ? await call("/api/admin/orders") : tab === "stock" ? null : await call(`/api/admin/${tab}`);
+    const extTab = ext.adminTabs.find((t) => t.key === tab);
+    const body = extTab ? null : tab === "orders" ? await call("/api/admin/orders") : tab === "stock" ? null : await call(`/api/admin/${tab}`);
     main.innerHTML = `<section class="wrap admin"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px"><h1 style="font-size:2.6rem">Dashboard</h1><button class="btn ghost sm" id="out">Sign out</button></div>
       <div class="kpis">${[["Revenue", rs(s.revenue)], ["Orders", s.orders], ["To process", s.pending], ["Waitlist (West)", s.waitlist], ["Subscribers", s.newsletter]].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
-      <div class="tabs">${["orders", "stock", "waitlist", "newsletter", "leads", "messages"].map((t) => `<button data-tab="${t}" class="${t === tab ? "on" : ""}">${t}</button>`).join("")}</div>
-      ${tab === "orders" ? `<table><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr>${body.map((o) => `<tr><td><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString("en-GB")}</small></td><td>${esc(o.customer.name)}<br><small>+${esc(o.customer.phone)} · ${esc(o.customer.city)}</small><br><small>${esc(o.customer.address)}</small></td><td>${o.items.map((i) => `${esc(i.title)} (${esc(i.size)}) ×${i.qty}`).join("<br>")}</td><td>${rs(o.total)}${o.coupon ? `<br><small>${esc(o.coupon)}</small>` : ""}</td><td>${esc(o.payment)}</td><td><select data-st="${esc(o.id)}">${["placed", "confirmed", "dispatched", "delivered", "cancelled"].map((x) => `<option ${x === o.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`).join("") || `<tr><td colspan="6">No orders yet.</td></tr>`}</table>`
+      <div class="tabs">${["orders", "stock", "waitlist", "newsletter", "leads", "messages"].map((t) => `<button data-tab="${t}" class="${t === tab ? "on" : ""}">${t}</button>`).join("")}${ext.adminTabs.map((t) => `<button data-tab="${esc(t.key)}" class="${t.key === tab ? "on" : ""}">${esc(t.label)}</button>`).join("")}</div>
+      ${extTab ? `<div id="ext-tab"></div>` : ""}
+      ${extTab ? "" : tab === "orders" ? `<table><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr>${body.map((o) => `<tr><td><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString("en-GB")}</small></td><td>${esc(o.customer.name)}<br><small>+${esc(o.customer.phone)} · ${esc(o.customer.city)}</small><br><small>${esc(o.customer.address)}</small></td><td>${o.items.map((i) => `${esc(i.title)} (${esc(i.size)}) ×${i.qty}${lineExtras(i)}`).join("<br>")}${(o.credits || []).map((c) => `<br><small>${esc(c.label)} −${rs(c.amount)}</small>`).join("")}</td><td>${rs(o.total)}${o.coupon ? `<br><small>${esc(o.coupon)}</small>` : ""}</td><td>${esc(o.payment)}</td><td><select data-st="${esc(o.id)}">${["placed", "confirmed", "dispatched", "delivered", "cancelled"].map((x) => `<option ${x === o.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`).join("") || `<tr><td colspan="6">No orders yet.</td></tr>`}</table>`
       : tab === "stock" ? `<table><tr><th>Product</th><th>Stock by size</th></tr>${P().map((p) => `<tr><td><b>${esc(p.title)}</b><br><small>${esc(p.id)} · ${rs(p.price)}</small></td><td>${Object.entries(p.stock).map(([z, n]) => `<label style="margin-right:10px;white-space:nowrap">${esc(z)} <input type="number" min="0" value="${n}" style="width:64px" data-stock="${p.id}|${esc(z)}"></label>`).join("")}</td></tr>`).join("")}</table>`
       : `<table><tr><th>Contact / name</th><th>Details</th><th>Date</th></tr>${body.map((r) => `<tr><td>${esc(r.contact || r.name || "")}${r.email ? `<br><small>${esc(r.email)}</small>` : ""}</td><td>${esc(r.message || r.prize || r.interest || "")}</td><td>${new Date(r.at).toLocaleString("en-GB")}</td></tr>`).join("") || `<tr><td colspan="3">Nothing yet.</td></tr>`}</table>`}</section>`;
+    if (extTab) try { await extTab.render($("#ext-tab", main), call); } catch (e) { $("#ext-tab", main).textContent = e.message; }
     main.onclick = (e) => { const t = e.target.closest("[data-tab]"); if (t) dash(t.dataset.tab); if (e.target.closest("#out")) { sessionStorage.removeItem("az_admin"); login(); } };
     main.onchange = async (e) => {
       const st = e.target.closest("[data-st]");

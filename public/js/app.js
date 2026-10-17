@@ -1,5 +1,6 @@
 // Aarzu storefront: layout, router, cart drawer, search, spin wheel.
-import { $, $$, esc, rs, img, icon, api, state, on, boot, quote, setQty, setCoupon, addToCart, card, toast, openOverlay, closeOverlay, reveal, confetti, cardActions, sid } from "./core.js";
+import { $, $$, esc, rs, img, icon, api, state, on, boot, quote, setQty, setCoupon, addToCart, card, toast, openOverlay, closeOverlay, reveal, confetti, cardActions, sid, ext, fillSlots, setNavigate, listed, lineExtras } from "./core.js";
+import { FEATURES } from "./features/index.js";
 import { routes } from "./pages.js";
 
 const BUNTING = ["#D6246E", "#F2A900", "#0FA3A3", "#F26B1D", "#1C2A6B", "#0B5D4B", "#E43F7B", "#FFD23F"];
@@ -27,7 +28,7 @@ function announce() {
 }
 
 function header() {
-  const pick = (f) => state.products.find(f);
+  const pick = (f) => listed().find(f);
   const wImg = pick((p) => p.gender === "women")?.images[0], mImg = pick((p) => p.gender === "men")?.images[0];
   const mega = (g, feat, label) => `<div class="mega"><div class="wrap">
       <div><h5>Unstitched</h5><ul><li><a href="/shop?gender=${g}&category=unstitched" data-link>All unstitched</a></li><li><a href="/shop?gender=${g}&category=unstitched&fabric=Lawn" data-link>Lawn</a></li><li><a href="/shop?gender=${g}&category=unstitched&fabric=Khaddar" data-link>Khaddar</a></li><li><a href="/shop?gender=${g}&pieces=3" data-link>3-Piece suits</a></li></ul></div>
@@ -49,6 +50,7 @@ function header() {
     </div>
     <a class="logo" href="/" data-link aria-label="Aarzu home"><span class="ur">آرزو</span><span class="en">AARZU</span></a>
     <div class="tools">
+      ${ext.headerTools.map((fn) => { try { return fn() || ""; } catch { return ""; } }).join("")}
       <button class="icon-btn" id="search-btn" aria-label="Search">${icon("search")}</button>
       <a class="icon-btn" href="/wishlist" data-link aria-label="Wishlist">${icon("heart")}<span class="bubble" id="wish-count" hidden></span></a>
       <button class="icon-btn" id="bag-btn" data-open-cart aria-label="Bag">${icon("shopping-bag")}<span class="bubble" id="bag-count" hidden></span></button>
@@ -82,13 +84,15 @@ function footer() {
   $("#footer").innerHTML = `<div class="wrap top">
       <div class="brand"><div class="ur">آرزو</div><p>Shalwar kameez with the soul of Pakistan: designer favourites for less, and our own Originals inspired by the crafts of every province.</p>
         <div class="socials">${["instagram", "facebook", "tiktok", "youtube"].map((k) => `<a href="${esc(s.social[k])}" target="_blank" rel="noopener" aria-label="${k}">${icon(k, "", 18)}</a>`).join("")}</div></div>
-      <div><h5>Shop</h5><ul><li><a href="/shop?gender=women" data-link>Women</a></li><li><a href="/shop?gender=men" data-link>Men</a></li><li><a href="/shop?collection=originals" data-link>Aarzu Originals</a></li><li><a href="/shop?category=accessory" data-link>Dupattas & Shawls</a></li><li><a href="/western" data-link>Western (coming soon)</a></li></ul></div>
-      <div><h5>Help</h5><ul><li><a href="/track" data-link>Track your order</a></li><li><a href="/shipping" data-link>Delivery & exchanges</a></li><li><a href="/size-guide" data-link>Size guide</a></li><li><a href="/faq" data-link>FAQs</a></li><li><a href="/contact" data-link>Contact us</a></li></ul></div>
-      <div><h5>Aarzu</h5><ul><li><a href="/about" data-link>Our story</a></li><li><a href="/shop?sort=new" data-link>New arrivals</a></li><li><a href="/wishlist" data-link>Wishlist</a></li><li><button data-spin class="link">Spin the wheel</button></li></ul></div>
+      <div><h5>Shop</h5><ul><li><a href="/shop?gender=women" data-link>Women</a></li><li><a href="/shop?gender=men" data-link>Men</a></li><li><a href="/shop?collection=originals" data-link>Aarzu Originals</a></li><li><a href="/shop?category=accessory" data-link>Dupattas & Shawls</a></li><li><a href="/western" data-link>Western (coming soon)</a></li>${extLinks("shop")}</ul></div>
+      <div><h5>Help</h5><ul><li><a href="/track" data-link>Track your order</a></li><li><a href="/shipping" data-link>Delivery & exchanges</a></li><li><a href="/size-guide" data-link>Size guide</a></li><li><a href="/faq" data-link>FAQs</a></li><li><a href="/contact" data-link>Contact us</a></li>${extLinks("help")}</ul></div>
+      <div><h5>Aarzu</h5><ul><li><a href="/about" data-link>Our story</a></li><li><a href="/shop?sort=new" data-link>New arrivals</a></li><li><a href="/wishlist" data-link>Wishlist</a></li><li><button data-spin class="link">Spin the wheel</button></li>${extLinks("aarzu")}</ul></div>
       <div><h5>Talk to us</h5><ul><li>${icon("phone", "", 15)} ${esc(c.phone)}</li><li>${icon("mail", "", 15)} ${esc(c.email)}</li><li>${icon("map-pin", "", 15)} ${esc(c.address)}</li><li>${icon("clock", "", 15)} ${esc(c.hours)}</li></ul></div>
     </div>
     <div class="wrap bottom"><span>© ${new Date().getFullYear()} Aarzu · <span class="urdu">آپ کی آرزو، ہماری ذمہ داری</span></span><div class="pay"><span>Cash on Delivery</span><span>Bank Transfer</span><span>JazzCash</span><span>Easypaisa</span></div></div>`;
 }
+
+const extLinks = (where) => ext.links.filter((l) => l.where === where).map((l) => `<li><a href="${esc(l.href)}" data-link>${esc(l.label)}</a></li>`).join("");
 
 function fab() {
   const wa = state.store.contact.whatsapp;
@@ -125,10 +129,11 @@ function renderCart(el) {
     <div class="ship-meter ${q.freeShippingRemaining ? "" : "done"}">${q.freeShippingRemaining ? `<span>You're <b>${rs(q.freeShippingRemaining)}</b> away from <b>free delivery</b></span>` : `<span>🎉 You've unlocked <b>free delivery</b>!</span>`}
       <div class="b"><i style="width:${pct}%"></i><span class="truck" style="left:${pct}%">${icon("truck", "", 16)}</span></div></div>
     ${nextTier && q.suitQty > 0 ? `<div class="nudge" style="margin-bottom:12px">${icon("sparkles")}<span>Add <b>${nextTier.minItems - q.suitQty} more suit</b> and get <b>${nextTier.percent}% off</b> all suits.</span></div>` : ""}
-    ${q.items.map((i) => `<div class="line-item"><a href="/product/${i.slug}" data-link data-close><img src="${esc(img(i.image))}" alt="" referrerpolicy="no-referrer"></a><div>
+    ${q.items.map((i, n) => `<div class="line-item"><a href="/product/${i.slug}" data-link data-close><img src="${esc(img(i.image))}" alt="" referrerpolicy="no-referrer"></a><div>
         <div class="t">${esc(i.title)}</div><div class="m">${esc(i.size)}${i.compareAt ? ` · <s>${rs(i.compareAt)}</s>` : ""}</div>
-        <div class="r"><div class="qty sm"><button data-q="${i.id}|${esc(i.size)}|${i.qty - 1}" aria-label="Less">${icon("minus", "", 14)}</button><span>${i.qty}</span><button data-q="${i.id}|${esc(i.size)}|${i.qty + 1}" aria-label="More">${icon("plus", "", 14)}</button></div><b>${rs(i.line)}</b></div>
-        <button class="rm" data-q="${i.id}|${esc(i.size)}|0">Remove</button></div></div>`).join("")}
+        ${lineExtras(i)}
+        <div class="r"><div class="qty sm"><button data-q="${n}|${i.qty - 1}" aria-label="Less">${icon("minus", "", 14)}</button><span>${i.qty}</span><button data-q="${n}|${i.qty + 1}" aria-label="More">${icon("plus", "", 14)}</button></div><b>${rs(i.line)}</b></div>
+        <button class="rm" data-q="${n}|0">Remove</button></div></div>`).join("")}
     ${ups.length && q.suitQty ? `<div class="upsell"><h6>${icon("wand-sparkles", "", 13)} Complete the look · ${s.bundle.percent}% off</h6><div class="upsell-row">${ups.map((p) => `<div class="mini"><img src="${esc(img(p.images[0]))}" alt="" referrerpolicy="no-referrer"><b>${esc(p.title)}</b><span>${rs(p.price)}</span><button data-add="${p.id}">+ Add</button></div>`).join("")}</div></div>` : ""}`;
   $("#cart-foot", el).innerHTML = `
     <form class="coupon" id="coupon-f"><input name="code" placeholder="Discount code" value="${esc(state.coupon?.code || "")}" aria-label="Discount code"><button class="btn sm ghost">${state.coupon ? "Change" : "Apply"}</button></form>
@@ -136,13 +141,16 @@ function renderCart(el) {
     <div class="sumline"><span>Subtotal</span><span>${rs(q.subtotal)}</span></div>
     ${q.discounts.map((d) => `<div class="sumline disc"><span>${esc(d.label)}</span><span>−${rs(d.amount)}</span></div>`).join("")}
     <div class="sumline"><span>Delivery</span><span>${q.shipping ? rs(q.shipping) : "FREE"}</span></div>
+    ${q.credits.map((c) => `<div class="sumline disc"><span>${esc(c.label)}</span><span>−${rs(c.amount)}</span></div>`).join("")}
     <div class="sumline total"><span>Total</span><span>${rs(q.total)}</span></div>
     ${q.savings > 0 ? `<div class="savings-pill">${icon("badge-percent", "", 16)} You're saving ${rs(q.savings)} on this order</div>` : ""}
     <a class="btn rani block" href="/checkout" data-link data-close>${icon("lock", "", 16)} Checkout · ${rs(q.total)}</a>
     <div class="trust-mini"><span>${icon("banknote", "", 14)} Cash on delivery</span><span>${icon("refresh-ccw", "", 14)} ${s.returnDays}-day exchange</span><span>${icon("shield-check", "", 14)} Quality checked</span></div>`;
+  $("#cart-body", el).insertAdjacentHTML("beforeend", `<div data-slot="cart-extras"></div>`);
+  fillSlots($("#cart-body", el), { quote: q });
   el.onclick = (e) => {
     const b = e.target.closest("[data-q]");
-    if (b) { const [id, size, qty] = b.dataset.q.split("|"); setQty(id, size, Math.min(10, Number(qty))); }
+    if (b) { const [n, qty] = b.dataset.q.split("|"); setQty(q.items[Number(n)].key, Math.min(10, Number(qty))); }
     const a = e.target.closest("[data-add]");
     if (a) { const p = state.byId[a.dataset.add]; addToCart(p.id, p.sizes[0]); toast(`${esc(p.title)} added`, { img: p.images[0] }); }
   };
@@ -163,7 +171,7 @@ function openSearch() {
   const input = $("#sq", el);
   const run = () => {
     const t = input.value.trim().toLowerCase();
-    const hits = !t ? state.products.slice(0, 5) : state.products.filter((p) => [p.title, p.urdu, p.fabric, p.category, p.gender, p.region, p.motif, typeLabel(p), ...(p.colors || []), ...(p.occasions || [])].join(" ").toLowerCase().includes(t.replace(/s$/, ""))).slice(0, 10);
+    const hits = !t ? listed().slice(0, 5) : listed().filter((p) => [p.title, p.urdu, p.fabric, p.category, p.gender, p.region, p.motif, typeLabel(p), ...(p.colors || []), ...(p.occasions || [])].join(" ").toLowerCase().includes(t.replace(/s$/, ""))).slice(0, 10);
     $("#sr", el).innerHTML = hits.length ? hits.map((p) => card(p, { reveal: false })).join("") : `<p style="grid-column:1/-1;color:var(--muted)">Nothing yet for “${esc(t)}”. Try lawn, khaddar or dupatta.</p>`;
   };
   input.oninput = run;
@@ -177,7 +185,7 @@ const typeLabel = (p) => (p.category === "accessory" ? p.accessoryType : p.categ
 function openMenu() {
   const el = openOverlay(`<div class="drawer-head"><a class="logo" href="/" data-link data-close><span class="ur">آرزو</span></a><button class="icon-btn" data-close aria-label="Close">${icon("x")}</button></div>
     <div class="drawer-body"><nav style="display:grid;gap:4px;font-family:var(--serif);font-size:1.9rem">
-      ${[["Women", "/shop?gender=women"], ["Men", "/shop?gender=men"], ["Aarzu Originals", "/shop?collection=originals"], ["Dupattas & Shawls", "/shop?category=accessory"], ["New Arrivals", "/shop?sort=new"], ["Western · soon", "/western"], ["Wishlist", "/wishlist"], ["Track order", "/track"], ["Our story", "/about"], ["Contact", "/contact"]].map(([l, h], i) => `<a href="${h}" data-link data-close data-reveal="left" style="--i:${i};padding:6px 0;border-bottom:1px solid var(--line)">${l}</a>`).join("")}
+      ${[["Women", "/shop?gender=women"], ["Men", "/shop?gender=men"], ["Aarzu Originals", "/shop?collection=originals"], ["Dupattas & Shawls", "/shop?category=accessory"], ["New Arrivals", "/shop?sort=new"], ["Western · soon", "/western"], ["Wishlist", "/wishlist"], ["Track order", "/track"], ["Our story", "/about"], ["Contact", "/contact"], ...ext.links.filter((l) => l.where === "menu").map((l) => [l.label, l.href])].map(([l, h], i) => `<a href="${h}" data-link data-close data-reveal="left" style="--i:${i};padding:6px 0;border-bottom:1px solid var(--line)">${l}</a>`).join("")}
     </nav></div>`, { kind: "drawer left" });
   setTimeout(() => reveal(el), 50);
 }
@@ -266,7 +274,7 @@ async function render({ replace = false } = {}) {
   if (!replace) view.className = "page-enter";
   $("#main").replaceChildren(view);
   let match = null, params = [];
-  for (const [re, fn] of routes) { const m = url.pathname.match(re); if (m) { match = fn; params = m.slice(1); break; } }
+  for (const [re, fn] of [...ext.routes, ...routes]) { const m = url.pathname.match(re); if (m) { match = fn; params = m.slice(1); break; } }
   const res = await (match || routes.at(-1)[1])(view, { url, params, go, replace });
   cleanup = typeof res === "function" ? res : null;
   $$("[data-nav]").forEach((a) => {
@@ -274,7 +282,9 @@ async function render({ replace = false } = {}) {
     a.classList.toggle("active", q.get("gender") === k || q.get("collection") === k || q.get("category") === k || url.pathname === "/" + k);
   });
   if (!replace) scrollTo({ top: 0, behavior: "instant" });
+  fillSlots(view, { url });
   reveal(view);
+  for (const fn of ext.routeHooks) try { fn(url, view); } catch (e) { console.error(e); }
 }
 
 document.addEventListener("click", (e) => {
@@ -297,8 +307,25 @@ function wheelPrompt() {
   document.addEventListener("mouseout", (e) => { if (!e.relatedTarget && e.clientY < 8) show(); });
 }
 
+// Load every feature module (and its stylesheet). A broken feature is skipped, never fatal.
+async function loadFeatures() {
+  await Promise.all(FEATURES.map(async (name) => {
+    try {
+      const m = await import(`./features/${name}.js`);
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `/css/features/${name}.css`;
+      document.head.append(link);
+      await m.init?.();
+    } catch (e) {
+      console.warn(`[feature ${name}] not loaded:`, e.message);
+    }
+  }));
+}
+
 (async function start() {
-  try { await boot(); } catch (e) { $("#main").innerHTML = `<div class="empty-state"><h3>Couldn't reach the store</h3><p>${esc(e.message)}</p></div>`; return; }
+  setNavigate((href) => go(href));
+  try { await boot(); await loadFeatures(); } catch (e) { $("#main").innerHTML = `<div class="empty-state"><h3>Couldn't reach the store</h3><p>${esc(e.message)}</p></div>`; return; }
   announce(); header(); footer(); fab();
   on(() => counts());
   cardActions(document.body);

@@ -166,5 +166,23 @@
       "name": "Other city",
       "days": "3–6"
     }
-  ]
+  ],
+  "addons": {
+    "stitching": {
+      "label": "Stitching",
+      "appliesTo": [
+        "unstitched"
+      ],
+      "options": {
+        "standard": {
+          "label": "Standard stitching",
+          "price": 1500
+        },
+        "designer": {
+          "label": "Designer stitching (piping, lace & buttons)",
+          "price": 2500
+        }
+      }
+    }
+  }
 }

@@ -22,6 +22,25 @@ const db = new JsonStore(path.join(DATA, "runtime"));
 const catalog = new Catalog(DATA, path.join(PUBLIC, "images", "originals", "photos"), db);
 const store = () => JSON.parse(fs.readFileSync(path.join(DATA, "store.json"), "utf8"));
 
+// Feature modules: every lib/routes/*.mjs may export
+//   handle(req, res, url, ctx) -> true when it answered the request
+//   resolveCoupon(code, ctx)   -> coupon object for codes it owns, else null
+//   quoteCredit(body, ctx, req) -> { key, label, amount, commit(order, applied) } | null (throw to reject);
+//                                 body.credits = [{ key, payload }] sent by the checkout
+//   onOrder(order, ctx, req) / onOrderStatus(order, prevStatus, ctx)
+//   adminSummary(ctx)          -> extra fields for the admin summary
+// A module that fails to load is skipped so it can never take the store down.
+const modules = [];
+const ROUTES_DIR = path.join(ROOT, "lib", "routes");
+for (const f of fs.existsSync(ROUTES_DIR) ? fs.readdirSync(ROUTES_DIR).filter((x) => x.endsWith(".mjs")).sort() : []) {
+  try {
+    modules.push({ name: f, ...(await import(new URL(`./lib/routes/${f}`, import.meta.url))) });
+  } catch (e) {
+    console.warn(`[modules] skipped ${f}: ${e.message}`);
+  }
+}
+const parseCookies = (req) => Object.fromEntries(String(req.headers.cookie || "").split(/;\s*/).filter(Boolean).map((c) => { const i = c.indexOf("="); return [decodeURIComponent(c.slice(0, i)), decodeURIComponent(c.slice(i + 1))]; }));
+
 const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
@@ -79,7 +98,8 @@ const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || ""));
 
 function resolveCoupon(code, phone) {
   if (!code) return { coupon: null };
-  const c = store().coupons[String(code).toUpperCase().trim()];
+  let c = store().coupons[String(code).toUpperCase().trim()];
+  if (!c) for (const m of modules) if (!c && m.resolveCoupon) try { c = m.resolveCoupon(String(code).toUpperCase().trim(), ctx); } catch {}
   if (!c) return { error: "That code isn't valid." };
   const offer = store().launchOffer;
   if (String(code).toUpperCase() === offer.code && Date.now() > Date.parse(offer.endsAt)) return { error: "This launch offer has ended." };
@@ -125,7 +145,9 @@ async function api(req, res, url) {
   if (p === "/api/quote" && M === "POST") {
     const b = await readBody(req);
     const r = resolveCoupon(b.code, b.phone);
-    return json(req, res, 200, { ...priceCart(b.items || [], catalog.byId, store(), r.coupon), couponError: r.error || null });
+    let credits = [];
+    try { credits = await collectCredits(b, req); } catch (e) { return fail(req, res, 422, e.message); }
+    return json(req, res, 200, { ...priceCart(b.items || [], catalog.byId, store(), r.coupon, { credits }), couponError: r.error || null });
   }
 
   if (p === "/api/spin" && M === "POST") {
@@ -153,15 +175,21 @@ async function api(req, res, url) {
 
     const r = resolveCoupon(b.code, c.phone);
     if (r.error) return json(req, res, 422, { error: r.error, errors: { code: r.error } });
-    const quote = priceCart(b.items || [], catalog.byId, store(), r.coupon);
+    let credits = [];
+    try { credits = await collectCredits(b, req); } catch (e) { return json(req, res, 422, { error: e.message, errors: { credit: e.message } }); }
+    const items = (Array.isArray(b.items) ? b.items : []).map((l) => ({ ...l, meta: cleanMeta(l.meta) }));
+    const quote = priceCart(items, catalog.byId, store(), r.coupon, { credits });
     if (!quote.items.length) return fail(req, res, 400, "Your bag is empty.");
-    for (const i of quote.items) {
-      const left = catalog.stockOf(catalog.byId[i.id])[i.size] ?? 0;
-      if (left < i.qty) return fail(req, res, 409, `Sorry, only ${left} left of ${i.title} (${i.size}).`);
+    const need = {};
+    for (const i of quote.items) need[`${i.id}|${i.size}`] = (need[`${i.id}|${i.size}`] || 0) + i.qty;
+    for (const [k, qty] of Object.entries(need)) {
+      const [id, size] = k.split("|");
+      const left = catalog.stockOf(catalog.byId[id])[size] ?? 0;
+      if (left < qty) return fail(req, res, 409, `Sorry, only ${left} left of ${catalog.byId[id].title} (${size}).`);
     }
-    for (const i of quote.items) {
-      const left = catalog.stockOf(catalog.byId[i.id])[i.size];
-      catalog.setStock(i.id, i.size, left - i.qty);
+    for (const [k, qty] of Object.entries(need)) {
+      const [id, size] = k.split("|");
+      catalog.setStock(id, size, catalog.stockOf(catalog.byId[id])[size] - qty);
     }
     const now = new Date().toISOString();
     const order = {
@@ -171,14 +199,20 @@ async function api(req, res, url) {
       history: [{ status: "placed", at: now }],
       payment: b.payment,
       customer: { name: clean(c.name, 80), phone, email: clean(c.email, 120), city: clean(c.city, 60), address: clean(c.address, 500), notes: clean(c.notes, 500) },
-      items: quote.items.map(({ id, title, image, size, qty, unit, line }) => ({ id, title, image, size, qty, unit, line })),
+      items: quote.items.map(({ id, title, image, size, qty, unit, line, addons, meta }) => ({ id, title, image, size, qty, unit, line, addons, meta })),
       subtotal: quote.subtotal,
       discounts: quote.discounts,
       shipping: quote.shipping,
+      credits: quote.credits,
       total: quote.total,
       coupon: quote.coupon,
     };
     db.push("orders", order);
+    for (const c of credits) {
+      const applied = quote.credits.find((x) => x.key === c.key)?.amount || 0;
+      try { await c.commit?.(order, applied); } catch (e) { console.warn(`[credit] ${c.key}: ${e.message}`); }
+    }
+    for (const m of modules) if (m.onOrder) try { await m.onOrder(order, ctx, req); } catch (e) { console.warn(`[${m.name}] onOrder: ${e.message}`); }
     console.log(`[order] ${order.id} · ${order.customer.city} · Rs ${order.total}`);
     return json(req, res, 201, { id: order.id, total: order.total, payment: order.payment });
   }
@@ -249,6 +283,7 @@ async function api(req, res, url) {
         newsletter: db.get("newsletter", []).length,
         leads: db.get("leads", []).length,
         products: catalog.products.length,
+        ...Object.assign({}, ...modules.filter((m) => m.adminSummary).map((m) => { try { return m.adminSummary(ctx); } catch { return {}; } })),
         lowStock: catalog.publicList().filter((x) => Object.values(x.stock).some((q) => q <= 3)).map((x) => ({ id: x.id, title: x.title, stock: x.stock })),
       });
     }
@@ -261,9 +296,11 @@ async function api(req, res, url) {
       const o = orders.find((x) => x.id === st[1]);
       if (!o) return fail(req, res, 404, "No such order");
       if (b.status === "cancelled" && o.status !== "cancelled") for (const i of o.items) catalog.setStock(i.id, i.size, (catalog.stockOf(catalog.byId[i.id] || { stock: {} })[i.size] || 0) + i.qty);
+      const prevStatus = o.status;
       o.status = b.status;
       o.history.push({ status: b.status, at: new Date().toISOString() });
       db.set("orders", orders);
+      for (const m of modules) if (m.onOrderStatus) try { await m.onOrderStatus(o, prevStatus, ctx); } catch (e) { console.warn(`[${m.name}] onOrderStatus: ${e.message}`); }
       return json(req, res, 200, o);
     }
     if (p === "/api/admin/stock" && M === "POST") {
@@ -278,6 +315,31 @@ async function api(req, res, url) {
 
   return fail(req, res, 404, "Not found");
 }
+
+// Line meta (e.g. measurements, gift-card recipient) is free-form but bounded.
+function cleanMeta(meta) {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return undefined;
+  const out = {};
+  for (const [k, v] of Object.entries(meta).slice(0, 30)) {
+    if (typeof v === "boolean" || typeof v === "number") out[clean(k, 40)] = v;
+    else if (v != null) out[clean(k, 40)] = clean(v, 300);
+  }
+  return out;
+}
+
+async function collectCredits(body, req) {
+  const out = [];
+  for (const m of modules) if (m.quoteCredit) {
+    const c = await m.quoteCredit(body, ctx, req);
+    if (c && c.amount > 0) out.push(c);
+  }
+  return out;
+}
+
+const ctx = {
+  db, catalog, store, json, fail, send, readBody, clean, normPhone, validEmail, adminOk, parseCookies, priceCart, resolveCoupon,
+  orders: () => db.get("orders", []),
+};
 
 function publicStore() {
   const s = store();
@@ -309,6 +371,7 @@ function serveStatic(req, res, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   try {
+    for (const m of modules) if (m.handle && (await m.handle(req, res, url, ctx))) return;
     if (url.pathname.startsWith("/api/")) return await api(req, res, url);
     if (url.pathname === "/img") return await serveImage(url.searchParams.get("u"), path.join(DATA, "runtime", "img-cache"), res);
     serveStatic(req, res, url);
@@ -320,7 +383,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n  ✿ Aarzu is live → http://localhost:${PORT}`);
-  console.log(`    ${catalog.products.length} products loaded · admin at /admin`);
+  console.log(`    ${catalog.products.length} products loaded · ${modules.length} feature modules · admin at /admin`);
   if (!process.env.ADMIN_PASSWORD) console.log(`    (admin password is the default "aarzu-admin"; set ADMIN_PASSWORD to change it)`);
   brandHint();
 });
