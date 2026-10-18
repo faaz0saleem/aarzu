@@ -224,9 +224,23 @@ function shop(main, { url, go, replace }) {
   const urdu = { Women: "خواتین", Men: "مرد", "Aarzu Originals": "آرزو اوریجنلز", "Dupattas & Shawls": "دوپٹے اور شالیں" }[title] || "آرزو";
   const prices = all.map((p) => p.price);
   const lo = Math.floor((Math.min(...prices, 1000) || 0) / 500) * 500, hi = Math.ceil((Math.max(...prices, 20000) || 20000) / 500) * 500;
+  // skip = the facet being counted, so its own options stay selectable
+  const matches = (p, skip) => {
+    const has = (k, v) => k === skip || !q[k] || q[k].split(",").includes(String(v));
+    const anyOf = (k, arr) => k === skip || !q[k] || q[k].split(",").some((x) => (arr || []).includes(x));
+    if (!has("gender", p.gender) && !(q.gender && p.gender === "unisex")) return false;
+    if (!has("category", p.category)) return false;
+    if (!has("collection", p.collection === "originals" ? "originals" : "designer")) return false;
+    if (!has("fabric", p.fabric) || !has("pieces", p.pieces) || !anyOf("occasion", p.occasions) || !anyOf("color", p.colors)) return false;
+    if (q.min && p.price < Number(q.min)) return false;
+    if (q.max && p.price > Number(q.max)) return false;
+    if (q.instock && !stockLeft(p)) return false;
+    if (q.q) { const t = q.q.toLowerCase().replace(/s$/, ""); if (![p.title, p.urdu, p.fabric, p.category, p.gender, p.region, p.motif, p.accessoryType, ...(p.colors || []), ...(p.occasions || [])].join(" ").toLowerCase().includes(t)) return false; }
+    return true;
+  };
   const facet = (k, get) => {
     const m = new Map();
-    for (const p of all) for (const v of [].concat(get(p) || [])) m.set(String(v), (m.get(String(v)) || 0) + 1);
+    for (const p of all) if (matches(p, k)) for (const v of [].concat(get(p) || [])) m.set(String(v), (m.get(String(v)) || 0) + 1);
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   };
   const g = (k, label, get, fmt = (x) => x) => {
@@ -261,19 +275,7 @@ function shop(main, { url, go, replace }) {
   if (filtersOpen) $("#filters", main).classList.add("on");
   const set = (k, v) => { const u = new URL(location.href); v ? u.searchParams.set(k, v) : u.searchParams.delete(k); go(u.pathname + u.search, true); };
   let shown = 16;
-  const list = all.filter((p) => {
-    const has = (k, v) => !q[k] || q[k].split(",").includes(String(v));
-    const anyOf = (k, arr) => !q[k] || q[k].split(",").some((x) => (arr || []).includes(x));
-    if (!has("gender", p.gender) && !(q.gender && p.gender === "unisex")) return false;
-    if (!has("category", p.category)) return false;
-    if (!has("collection", p.collection === "originals" ? "originals" : "designer")) return false;
-    if (!has("fabric", p.fabric) || !has("pieces", p.pieces) || !anyOf("occasion", p.occasions) || !anyOf("color", p.colors)) return false;
-    if (q.min && p.price < Number(q.min)) return false;
-    if (q.max && p.price > Number(q.max)) return false;
-    if (q.instock && !stockLeft(p)) return false;
-    if (q.q) { const t = q.q.toLowerCase().replace(/s$/, ""); if (![p.title, p.urdu, p.fabric, p.category, p.gender, p.region, p.motif, p.accessoryType, ...(p.colors || []), ...(p.occasions || [])].join(" ").toLowerCase().includes(t)) return false; }
-    return true;
-  });
+  const list = all.filter((p) => matches(p));
   const sorters = { new: (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt), low: (a, b) => a.price - b.price, high: (a, b) => b.price - a.price, save: (a, b) => (b.compareAt || b.price) - b.price - ((a.compareAt || a.price) - a.price), rating: (a, b) => (b.rating?.avg || 0) - (a.rating?.avg || 0) };
   if (sorters[q.sort]) list.sort(sorters[q.sort]);
   else list.sort((a, b) => (stockLeft(b) > 0) - (stockLeft(a) > 0) || (b.sold || 0) - (a.sold || 0));
@@ -288,7 +290,7 @@ function shop(main, { url, go, replace }) {
   };
   draw();
   const chips = FILTERS.filter((k) => q[k] && !["sort", "min", "max"].includes(k)).flatMap((k) => q[k].split(",").map((v) => [k, v]));
-  $("#chips", main).innerHTML = chips.map(([k, v]) => `<button class="chip" data-rm="${k}|${esc(v)}">${esc(k === "instock" ? "In stock" : k === "collection" ? (v === "originals" ? "Originals" : "Designer Edit") : v)} ${icon("x", "", 14)}</button>`).join("");
+  $("#chips", main).innerHTML = chips.map(([k, v]) => `<button class="chip" data-rm="${k}|${esc(v)}">${esc(k === "instock" ? "In stock" : k === "collection" ? (v === "originals" ? "Originals" : "Designer Edit") : k === "gender" ? ({ women: "Women", men: "Men", unisex: "Unisex" })[v] || v : k === "category" ? ({ unstitched: "Unstitched", "ready-to-wear": "Ready to wear", accessory: "Dupattas & Shawls" })[v] || v : k === "pieces" ? `${v}-Piece` : k === "q" ? `“${v}”` : v)} ${icon("x", "", 14)}</button>`).join("");
 
   main.addEventListener("change", (e) => {
     const c = e.target.closest("[data-f]");
