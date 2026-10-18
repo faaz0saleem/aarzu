@@ -48,7 +48,7 @@ function header() {
         <div class="nav-item"><a href="/western" data-link data-nav="western">Western <span class="soon-pill">Soon</span></a></div>
       </nav>
     </div>
-    <a class="logo" href="/" data-link aria-label="Aarzu home"><span class="ur">آرزو</span><span class="en">AARZU</span></a>
+    <a class="logo" href="/" data-link aria-label="Aarzu home"><img class="logo-mark" src="/brand/aarzu-mark.svg" alt="" width="40" height="52"><span class="words"><span class="ur">آرزو</span><span class="en">AARZU</span></span></a>
     <div class="tools">
       ${ext.headerTools.map((fn) => { try { return fn() || ""; } catch { return ""; } }).join("")}
       <button class="icon-btn" id="search-btn" aria-label="Search">${icon("search")}</button>
@@ -82,7 +82,7 @@ function footer() {
   const s = state.store, c = s.contact;
   $("#footer").className = "footer";
   $("#footer").innerHTML = `<div class="wrap top">
-      <div class="brand"><div class="ur">آرزو</div><p>Shalwar kameez with the soul of Pakistan: designer favourites for less, and our own Originals inspired by the crafts of every province.</p>
+      <div class="brand"><img class="footer-logo" src="/brand/aarzu-logo-dark.svg" alt="Aarzu آرزو" width="250" height="114"><p>Shalwar kameez with the soul of Pakistan: designer favourites for less, and our own Originals inspired by the crafts of every province.</p>
         <div class="socials">${["instagram", "facebook", "tiktok", "youtube"].map((k) => `<a href="${esc(s.social[k])}" target="_blank" rel="noopener" aria-label="${k}">${icon(k, "", 18)}</a>`).join("")}</div></div>
       <div><h5>Shop</h5><ul><li><a href="/shop?gender=women" data-link>Women</a></li><li><a href="/shop?gender=men" data-link>Men</a></li><li><a href="/shop?collection=originals" data-link>Aarzu Originals</a></li><li><a href="/shop?category=accessory" data-link>Dupattas & Shawls</a></li><li><a href="/western" data-link>Western (coming soon)</a></li>${extLinks("shop")}</ul></div>
       <div><h5>Help</h5><ul><li><a href="/track" data-link>Track your order</a></li><li><a href="/shipping" data-link>Delivery & exchanges</a></li><li><a href="/size-guide" data-link>Size guide</a></li><li><a href="/faq" data-link>FAQs</a></li><li><a href="/contact" data-link>Contact us</a></li>${extLinks("help")}</ul></div>
@@ -183,7 +183,7 @@ function openSearch() {
 const typeLabel = (p) => (p.category === "accessory" ? p.accessoryType : p.category);
 
 function openMenu() {
-  const el = openOverlay(`<div class="drawer-head"><a class="logo" href="/" data-link data-close><span class="ur">آرزو</span></a><button class="icon-btn" data-close aria-label="Close">${icon("x")}</button></div>
+  const el = openOverlay(`<div class="drawer-head"><a class="logo" href="/" data-link data-close><img class="logo-mark" src="/brand/aarzu-mark.svg" alt="" width="34" height="44"><span class="words"><span class="ur">آرزو</span><span class="en">AARZU</span></span></a><button class="icon-btn" data-close aria-label="Close">${icon("x")}</button></div>
     <div class="drawer-body"><nav style="display:grid;gap:4px;font-family:var(--serif);font-size:1.9rem">
       ${[["Women", "/shop?gender=women"], ["Men", "/shop?gender=men"], ["Aarzu Originals", "/shop?collection=originals"], ["Dupattas & Shawls", "/shop?category=accessory"], ["New Arrivals", "/shop?sort=new"], ["Western · soon", "/western"], ["Wishlist", "/wishlist"], ["Track order", "/track"], ["Our story", "/about"], ["Contact", "/contact"], ...ext.links.filter((l) => l.where === "menu").map((l) => [l.label, l.href])].map(([l, h], i) => `<a href="${h}" data-link data-close data-reveal="left" style="--i:${i};padding:6px 0;border-bottom:1px solid var(--line)">${l}</a>`).join("")}
     </nav></div>`, { kind: "drawer left" });

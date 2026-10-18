@@ -32,6 +32,23 @@ Slugs: `sindh-ajrak-noor`, `phulkari-bahar`, `rangeela-truck-art`, `multan-kashi
 
 **Homepage banner photos (optional).** Put the second Cowork result in `data/media.json` (array of `{slot, image, ...}`; slots `hero` and `western` are used).
 
+## Features
+
+Feature modules live in `public/js/features/` (with matching `public/css/features/` and optional `lib/routes/` server modules) and are switched on in `public/js/features/index.js`:
+
+- **quickview**: quick view from any product card, share buttons on product pages, "Order this bag on WhatsApp".
+- **stitching**: darzi service on unstitched suits (standard / designer, size or custom measurements, style choices), a `/stitching` page and a "Stitching jobs" admin tab with printable job cards. Prices come from `addons.stitching` in `data/store.json`.
+- **giftcards**: `/gift-cards` with Rs 2,000–25,000 digital cards (`data/catalog.giftcards.json`). Codes are created with the order, activate when you mark the order confirmed, and can be redeemed at checkout. There is a "Gift cards" admin tab.
+- **account**: sign up / sign in by phone, `/account` dashboard (orders, addresses, profile), Aarzu Rewards points (200 welcome points, 1 point per Rs 100 earned on delivery, redeem 500+ at checkout), and a "Customers" admin tab.
+
+## Brand assets
+
+The logo family is in `public/brand/`:
+
+- **Vector logos:** `aarzu-logo.svg` (plus `-dark`, `-tagline`, `-stacked`, `-stacked-dark`). All lettering is converted to outlines, so the files work anywhere.
+- **Emblem:** `aarzu-mark.svg` and the app icon `aarzu-icon.svg`.
+- **PNG exports:** for social media and print.
+
 ## Store settings
 
 `data/store.json` holds delivery fee and free-delivery threshold, dispatch cut-off, multi-buy and bundle discounts, coupon codes, spin-wheel odds, launch-offer end date, contact details (replace the placeholder WhatsApp/phone/email) and delivery cities.

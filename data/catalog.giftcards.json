@@ -1,0 +1,178 @@
+[
+  {
+    "id": "AZ-GC2000",
+    "slug": "gift-card-2000",
+    "title": "Aarzu Gift Card · Rs 2,000",
+    "urdu": "تحفہ کارڈ",
+    "collection": "giftcards",
+    "gender": "unisex",
+    "category": "giftcard",
+    "pieces": 1,
+    "fabric": "Digital",
+    "colors": [
+      "Gold"
+    ],
+    "occasions": [
+      "Eid",
+      "Wedding Guest"
+    ],
+    "region": null,
+    "motif": null,
+    "price": 2000,
+    "compareAt": null,
+    "images": [
+      "/images/giftcards/gift-card-2000.svg"
+    ],
+    "description": "A digital Aarzu gift card worth Rs 2,000. A thoughtful Eidi for a cousin, a friend or a favourite colleague: enough for a pretty dupatta or a lawn shirt. We send the code to the person you choose, on WhatsApp or email with your personal message, as soon as your payment is confirmed.",
+    "details": [
+      "Value: Rs 2,000",
+      "Delivered digitally to the recipient on WhatsApp or email, with your message",
+      "Sent once your payment is confirmed",
+      "Valid for 12 months from the day it is sent",
+      "Use it on everything at Aarzu, across as many orders as they like",
+      "Any balance stays on the card until it expires"
+    ],
+    "sizes": [
+      "Digital"
+    ],
+    "stock": {
+      "Digital": 9999
+    },
+    "unlisted": true,
+    "noDiscount": true,
+    "swatch": null,
+    "createdAt": "2026-10-17T00:00:00.000Z"
+  },
+  {
+    "id": "AZ-GC5000",
+    "slug": "gift-card-5000",
+    "title": "Aarzu Gift Card · Rs 5,000",
+    "urdu": "تحفہ کارڈ",
+    "collection": "giftcards",
+    "gender": "unisex",
+    "category": "giftcard",
+    "pieces": 1,
+    "fabric": "Digital",
+    "colors": [
+      "Gold"
+    ],
+    "occasions": [
+      "Eid",
+      "Wedding Guest"
+    ],
+    "region": null,
+    "motif": null,
+    "price": 5000,
+    "compareAt": null,
+    "images": [
+      "/images/giftcards/gift-card-5000.svg"
+    ],
+    "description": "A digital Aarzu gift card worth Rs 5,000. Enough for a full unstitched suit from the season, so they can pick the colour and print they love. We send the code to the person you choose, on WhatsApp or email with your personal message, as soon as your payment is confirmed.",
+    "details": [
+      "Value: Rs 5,000",
+      "Delivered digitally to the recipient on WhatsApp or email, with your message",
+      "Sent once your payment is confirmed",
+      "Valid for 12 months from the day it is sent",
+      "Use it on everything at Aarzu, across as many orders as they like",
+      "Any balance stays on the card until it expires"
+    ],
+    "sizes": [
+      "Digital"
+    ],
+    "stock": {
+      "Digital": 9999
+    },
+    "unlisted": true,
+    "noDiscount": true,
+    "swatch": null,
+    "createdAt": "2026-10-17T00:00:00.000Z"
+  },
+  {
+    "id": "AZ-GC10000",
+    "slug": "gift-card-10000",
+    "title": "Aarzu Gift Card · Rs 10,000",
+    "urdu": "تحفہ کارڈ",
+    "collection": "giftcards",
+    "gender": "unisex",
+    "category": "giftcard",
+    "pieces": 1,
+    "fabric": "Digital",
+    "colors": [
+      "Gold"
+    ],
+    "occasions": [
+      "Eid",
+      "Wedding Guest"
+    ],
+    "region": null,
+    "motif": null,
+    "price": 10000,
+    "compareAt": null,
+    "images": [
+      "/images/giftcards/gift-card-10000.svg"
+    ],
+    "description": "A digital Aarzu gift card worth Rs 10,000. A generous gift for weddings, birthdays and Eid: a designer suit with room to spare. We send the code to the person you choose, on WhatsApp or email with your personal message, as soon as your payment is confirmed.",
+    "details": [
+      "Value: Rs 10,000",
+      "Delivered digitally to the recipient on WhatsApp or email, with your message",
+      "Sent once your payment is confirmed",
+      "Valid for 12 months from the day it is sent",
+      "Use it on everything at Aarzu, across as many orders as they like",
+      "Any balance stays on the card until it expires"
+    ],
+    "sizes": [
+      "Digital"
+    ],
+    "stock": {
+      "Digital": 9999
+    },
+    "unlisted": true,
+    "noDiscount": true,
+    "swatch": null,
+    "createdAt": "2026-10-17T00:00:00.000Z"
+  },
+  {
+    "id": "AZ-GC25000",
+    "slug": "gift-card-25000",
+    "title": "Aarzu Gift Card · Rs 25,000",
+    "urdu": "تحفہ کارڈ",
+    "collection": "giftcards",
+    "gender": "unisex",
+    "category": "giftcard",
+    "pieces": 1,
+    "fabric": "Digital",
+    "colors": [
+      "Gold"
+    ],
+    "occasions": [
+      "Eid",
+      "Wedding Guest"
+    ],
+    "region": null,
+    "motif": null,
+    "price": 25000,
+    "compareAt": null,
+    "images": [
+      "/images/giftcards/gift-card-25000.svg"
+    ],
+    "description": "A digital Aarzu gift card worth Rs 25,000. Our most generous card, for a bride-to-be, a new home or a whole family Eid wardrobe. We send the code to the person you choose, on WhatsApp or email with your personal message, as soon as your payment is confirmed.",
+    "details": [
+      "Value: Rs 25,000",
+      "Delivered digitally to the recipient on WhatsApp or email, with your message",
+      "Sent once your payment is confirmed",
+      "Valid for 12 months from the day it is sent",
+      "Use it on everything at Aarzu, across as many orders as they like",
+      "Any balance stays on the card until it expires"
+    ],
+    "sizes": [
+      "Digital"
+    ],
+    "stock": {
+      "Digital": 9999
+    },
+    "unlisted": true,
+    "noDiscount": true,
+    "swatch": null,
+    "createdAt": "2026-10-17T00:00:00.000Z"
+  }
+]
