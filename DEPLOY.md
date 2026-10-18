@@ -10,6 +10,40 @@ This guide gets the shop running at your own address (for example `https://aarzu
 | A small server (VPS, Ubuntu 24.04, 2 GB RAM) | Hetzner (CX22), DigitalOcean, Contabo | ~US$5–7 / month |
 | A Gmail account for order emails | gmail.com | free |
 
+## Where your data lives (no database to pay for)
+
+Customers, accounts, orders, stock, reviews, gift cards and points are all saved as plain files in `data/runtime/` on whichever computer runs the shop. There is no paid database, and each copy in `data/backups/` is one dated folder of those files.
+
+Shoppers' bags, wishlists and recently viewed items are kept in their own browser.
+
+## Free or almost-free hosting
+
+Any host works as long as **its disk keeps your files**. Avoid the free plans of Render, Railway, Vercel, Netlify and Heroku: they wipe the disk on every restart, so orders and accounts would be lost.
+
+**Option A: Oracle Cloud "Always Free" (Rs 0 per month).**
+1. Sign up at oracle.com/cloud/free. A card is needed to verify you, but Always Free resources are not charged.
+2. Create an Ubuntu VM ("Ampere A1" shape is in the free limits).
+3. In the VM's network security list, open ports 80 and 443.
+4. Follow steps 1–4 below exactly as written.
+
+Oracle can stop free machines it sees as idle. Upgrading the account to "Pay As You Go" stops that, and you still pay nothing while you stay inside the free limits.
+
+**Option B: your own computer + Cloudflare Tunnel (Rs 0 per month).** The shop and all its data stay on your own computer, which must stay on and awake while you take orders.
+1. Start the shop as usual with `npm start`.
+2. In a second terminal install the tunnel. On a Mac run `brew install cloudflared`; on Windows download it from Cloudflare's website.
+3. **Quick test link (free, no account):** run `cloudflared tunnel --url http://localhost:3000`. It prints an `https://….trycloudflare.com` address anyone can open. The address changes every time, so use it only for trying things out.
+4. **Your own permanent address:** add your domain to a free Cloudflare account, then run:
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create aarzu
+   cloudflared tunnel route dns aarzu YOUR_DOMAIN
+   cloudflared tunnel run --url http://localhost:3000 aarzu
+   ```
+5. In `.env` set `TRUST_PROXY=1` and `SITE_URL=https://YOUR_DOMAIN`, then restart the shop. Without `TRUST_PROXY=1`, all shoppers look like one visitor and the spam limits block real orders.
+6. Copy `data/backups/` to a USB drive or Google Drive now and then. If the computer dies, the data goes with it.
+
+**Option C: a paid VPS (~Rs 1,500–2,000 per month)**, as in the table above. It is the most reliable choice once orders pick up.
+
 ## 1. Point the domain at the server
 
 Create the server first and note its **IP address**. In your domain's DNS settings add two **A records**:
