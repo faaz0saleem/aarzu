@@ -27,7 +27,7 @@ if (PRODUCTION && (!process.env.ADMIN_PASSWORD || ADMIN_PASSWORD.length < 10 || 
 const STATUSES = ["placed", "confirmed", "dispatched", "delivered", "cancelled", "returned"];
 const RESTOCK = new Set(["cancelled", "returned"]);
 
-const db = new JsonStore(path.join(DATA, "runtime"));
+const db = new JsonStore(process.env.RUNTIME_DIR || path.join(DATA, "runtime"));
 const catalog = new Catalog(DATA, path.join(PUBLIC, "images", "originals", "photos"), db);
 const store = () => JSON.parse(fs.readFileSync(path.join(DATA, "store.json"), "utf8"));
 
@@ -37,6 +37,7 @@ const store = () => JSON.parse(fs.readFileSync(path.join(DATA, "store.json"), "u
 //   quoteCredit(body, ctx, req) -> { key, label, amount, commit(order, applied) } | null (throw to reject);
 //                                 body.credits = [{ key, payload }] sent by the checkout
 //   onOrder(order, ctx, req) / onOrderStatus(order, prevStatus, ctx)
+//   onStock(id, size, qty, prevQty, ctx) after any stock change (admin edit, restock, sale)
 //   adminSummary(ctx)          -> extra fields for the admin summary
 // A module that fails to load is skipped so it can never take the store down.
 const modules = [];
@@ -126,6 +127,13 @@ function codBlocked(quote) {
   if (rules.maxTotal && quote.total > rules.maxTotal) return `Cash on delivery is available up to Rs ${rules.maxTotal.toLocaleString("en-PK")}. Please pay by bank transfer or JazzCash/Easypaisa.`;
   if (rules.advanceForAddons?.length && quote.items.some((i) => (i.addons || []).some((a) => rules.advanceForAddons.includes(a.key)))) return "Stitched-to-measure orders need advance payment by bank transfer or JazzCash/Easypaisa.";
   return null;
+}
+
+// All stock changes go through here so modules (e.g. back-in-stock alerts) hear about them.
+function setStock(id, size, qty) {
+  const prev = catalog.stockOf(catalog.byId[id])[size] ?? 0;
+  catalog.setStock(id, size, qty);
+  for (const m of modules) if (m.onStock) try { m.onStock(id, size, qty, prev, ctx); } catch (e) { console.warn(`[${m.name}] onStock: ${e.message}`); }
 }
 
 function resolveCoupon(code, phone) {
@@ -226,7 +234,7 @@ async function api(req, res, url) {
     }
     for (const [k, qty] of Object.entries(need)) {
       const [id, size] = k.split("|");
-      catalog.setStock(id, size, catalog.stockOf(catalog.byId[id])[size] - qty);
+      setStock(id, size, catalog.stockOf(catalog.byId[id])[size] - qty);
     }
     const now = new Date().toISOString();
     const order = {
@@ -337,7 +345,7 @@ async function api(req, res, url) {
       if (b.adminNote !== undefined) o.adminNote = clean(b.adminNote, 500);
       const status = b.status ?? o.status;
       if (!STATUSES.includes(status)) return fail(req, res, 400, "Bad status");
-      if (RESTOCK.has(status) && !RESTOCK.has(o.status)) for (const i of o.items) if (catalog.byId[i.id]) catalog.setStock(i.id, i.size, (catalog.stockOf(catalog.byId[i.id])[i.size] || 0) + i.qty);
+      if (RESTOCK.has(status) && !RESTOCK.has(o.status)) for (const i of o.items) if (catalog.byId[i.id]) setStock(i.id, i.size, (catalog.stockOf(catalog.byId[i.id])[i.size] || 0) + i.qty);
       const prevStatus = o.status;
       o.status = status;
       if (status !== prevStatus) o.history.push({ status, at: new Date().toISOString() });
@@ -348,7 +356,7 @@ async function api(req, res, url) {
     if (p === "/api/admin/stock" && M === "POST") {
       const b = await readBody(req);
       if (!catalog.byId[b.id]) return fail(req, res, 404, "No such product");
-      catalog.setStock(b.id, String(b.size), Number(b.qty));
+      setStock(b.id, String(b.size), Number(b.qty));
       return json(req, res, 200, { ok: true, stock: catalog.stockOf(catalog.byId[b.id]) });
     }
     const list = p.match(/^\/api\/admin\/(waitlist|newsletter|messages|leads)$/);
@@ -379,7 +387,7 @@ async function collectCredits(body, req) {
 }
 
 const ctx = {
-  db, catalog, store, json, fail, send, readBody, clean, normPhone, validEmail, adminOk, parseCookies, priceCart, resolveCoupon,
+  db, catalog, store, json, fail, send, readBody, clean, normPhone, validEmail, adminOk, parseCookies, priceCart, resolveCoupon, setStock,
   orders: () => db.get("orders", []),
 };
 
