@@ -458,7 +458,9 @@ function checkout(main, { go }) {
       <div class="field"><label>Order notes (optional)</label><input name="notes" placeholder="e.g. call before delivery"></div></div>
     <div data-slot="checkout-extras"></div>
     <div class="co-sec" style="border:0"><h3><span class="n">3</span>Payment</h3>
-      ${[["cod", "Cash on delivery", "Pay in cash when your order arrives", "Most popular"], ["bank", "Bank transfer", "We'll WhatsApp you our account details", ""], ["wallet", "JazzCash / Easypaisa", "Pay to our mobile wallet after ordering", ""]].map(([v, b, t, tag], i) => `<label class="pay-opt"><input type="radio" name="payment" value="${v}" ${i ? "" : "checked"}><span><b>${b}</b><small>${t}</small></span>${tag ? `<span class="tag">${tag}</span>` : "<span></span>"}</label>`).join("")}
+      ${[["cod", "Cash on delivery", "Pay in cash when your order arrives", "Most popular"], ["bank", "Bank transfer", "Account details shown after you order", ""], ["wallet", "JazzCash / Easypaisa", "Wallet number shown after you order", ""]].map(([v, b, t, tag], i) => `<label class="pay-opt" data-pay="${v}"><input type="radio" name="payment" value="${v}" ${i ? "" : "checked"}><span><b>${b}</b><small>${t}</small></span>${tag ? `<span class="tag">${tag}</span>` : "<span></span>"}</label>`).join("")}
+      <p class="cod-note" id="cod-note" hidden></p>
+      <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
       <button class="btn rani block" id="place" style="margin-top:20px;min-height:58px">${icon("lock", "", 16)} Place order</button>
       <p style="text-align:center;font-size:.8rem;color:var(--muted)">By placing your order you agree to our delivery & exchange policy.</p></div>
   </form>
@@ -475,6 +477,16 @@ function checkout(main, { go }) {
       ${q.savings > 0 ? `<div class="savings-pill">${icon("badge-percent", "", 16)} You're saving ${rs(q.savings)}</div>` : ""}
       <div class="trust-mini"><span>${icon("shield-check", "", 14)} Secure checkout</span><span>${icon("refresh-ccw", "", 14)} ${s.returnDays}-day exchange</span></div>`;
     fillSlots($("#summary", main), { quote: q, refresh: sum });
+    // Cash-on-delivery rules (same as the server's): stitched-to-measure and very large orders need an advance
+    const rules = s.cod || {};
+    const codWhy = rules.maxTotal && q.total > rules.maxTotal ? `Cash on delivery is available up to ${rs(rules.maxTotal)}.` : rules.advanceForAddons?.length && q.items.some((i) => (i.addons || []).some((a) => rules.advanceForAddons.includes(a.key))) ? "Stitched-to-measure orders are made just for you, so they need advance payment." : "";
+    const codInput = $('[data-pay="cod"] input', main);
+    codInput.disabled = !!codWhy;
+    $('[data-pay="cod"]', main).classList.toggle("off", !!codWhy);
+    if (codWhy && codInput.checked) $('[data-pay="bank"] input', main).checked = true;
+    const note = $("#cod-note", main);
+    note.hidden = !codWhy;
+    note.textContent = codWhy ? `${codWhy} Please choose bank transfer or JazzCash/Easypaisa.` : "";
     $("#place", main).innerHTML = `${icon("lock", "", 16)} Place order · ${rs(q.total)}`;
     $("#cpn", main).onsubmit = async (e) => { e.preventDefault(); const code = e.target.code.value.trim(); try { const c = code ? await api("/api/coupon", { code, phone: f.phone.value }) : null; (await import("./core.js")).setCoupon(c); sum(); if (c) toast("Code applied ✨"); } catch (err) { toast(esc(err.message)); } };
   };
@@ -489,7 +501,7 @@ function checkout(main, { go }) {
     btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Placing order…`;
     const customer = { name: f.name.value, phone: f.phone.value, email: f.email.value, city: f.city.value, address: f.address.value, notes: f.notes.value };
     try {
-      const r = await api("/api/orders", { customer, payment: f.payment.value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
+      const r = await api("/api/orders", { customer, website: f.website.value, payment: f.payment.value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
       localStorage.setItem("az_cust", JSON.stringify({ name: customer.name, phone: customer.phone, email: customer.email, city: customer.city, address: customer.address }));
       sessionStorage.setItem("az_last", JSON.stringify({ ...r, quote: quote(), customer }));
       clearCart();
@@ -506,6 +518,10 @@ function checkout(main, { go }) {
         btn.disabled = false; sum();
         return toast(`${esc(err.data.errors.code)} We've removed the code. Please check your new total.`, { icon: "x", ms: 6000 });
       }
+      if (err.data?.errors?.payment) {
+        btn.disabled = false; sum();
+        return toast(esc(err.data.errors.payment), { icon: "x", ms: 6000 });
+      }
       for (const [k, m] of Object.entries(err.data?.errors || {})) { const fd = $(`[data-k="${k}"]`, f); if (fd) { fd.classList.add("err"); $(".msg", fd).textContent = m; } }
       $(".field.err input, .field.err textarea", f)?.focus();
       toast(esc(err.message), { icon: "x" });
@@ -518,13 +534,15 @@ function success(main, { params }) {
   const o = (() => { try { return JSON.parse(sessionStorage.getItem("az_last")); } catch { return null; } })();
   const s = state.store;
   const mine = o && o.id === params[0];
-  const pay = mine && o.payment !== "cod" ? `<div class="card-box" style="max-width:560px;text-align:left"><b class="serif" style="font-size:1.4rem">Next: complete your payment</b><p style="margin:6px 0 0;color:var(--ink-2)">We'll send our ${o.payment === "bank" ? "bank account" : "JazzCash/Easypaisa"} details on WhatsApp within the hour. Your order ships once payment is confirmed.</p></div>` : "";
+  const details = mine && s.payments?.[o.payment]?.details;
+  const pay = mine && o.payment !== "cod" ? `<div class="card-box pay-box" style="max-width:560px;text-align:left"><b class="serif" style="font-size:1.4rem">Next: complete your payment of ${rs(o.total)}</b>${details ? `<pre class="pay-details">${esc(details)}</pre><button class="btn ghost sm" data-copy="${esc(details)}">${icon("copy", "", 14)} Copy details</button>` : ""}<p style="margin:10px 0 0;color:var(--ink-2)">Send a screenshot of the transfer on WhatsApp with your order number <b>${esc(o.id)}</b>. Your order ships as soon as we confirm the payment.</p></div>` : "";
   main.innerHTML = `<section class="wrap success"><div class="seal"><span>${icon("check", "", 44)}</span></div><span class="eyebrow">Shukriya${mine ? `, ${esc(o.customer.name.split(" ")[0])}` : ""}!</span><h1>Your aarzu is <em class="grad-text">on its way</em></h1>
     <span class="oid">${esc(params[0])}</span><p style="max-width:520px;color:var(--ink-2);margin:0">We've received your order${mine ? ` of <b>${rs(o.total)}</b>` : ""}. Our team will confirm it on WhatsApp shortly. Keep your order number to track it anytime.</p>
     ${pay}
     <div data-slot="success-extras" data-order="${esc(params[0])}" style="width:min(720px,100%)"></div>
     <div class="timeline">${["Placed", "Confirmed", "Dispatched", "Delivered"].map((t, i) => `<div class="${i ? "" : "done"}"><b>${i ? i + 1 : icon("check", "", 16)}</b>${t}</div>`).join("")}</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:20px"><a class="btn wa" href="https://wa.me/${s.contact.whatsapp}?text=${encodeURIComponent(`Assalam o Alaikum! My Aarzu order number is ${params[0]}.`)}" target="_blank" rel="noopener">${icon("whatsapp", "", 18)} Confirm on WhatsApp</a><a class="btn ghost" href="/track?id=${esc(params[0])}" data-link>Track order</a><a class="btn rani" href="/shop" data-link>Keep shopping</a></div></section>`;
+  main.addEventListener("click", (e) => { const c = e.target.closest("[data-copy]"); if (c) navigator.clipboard?.writeText(c.dataset.copy).then(() => toast("Payment details copied")); });
   setTimeout(() => confetti(220), 300);
 }
 
@@ -590,10 +608,12 @@ function track(main, { url }) {
       const o = await api(`/api/orders/${encodeURIComponent(f.id.value.trim().toUpperCase())}?phone=${encodeURIComponent(f.phone.value)}`);
       const steps = ["placed", "confirmed", "dispatched", "delivered"], at = steps.indexOf(o.status);
       $("#tr", main).innerHTML = `<div class="card-box swap-in"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px"><b class="serif" style="font-size:1.6rem">Order ${esc(o.id)}</b><span class="status ${o.status}">${o.status}</span></div><p style="color:var(--muted)">${new Date(o.createdAt).toLocaleString("en-GB")} · ${esc(o.customer.city)} · ${rs(o.total)}</p>
-        ${o.status === "cancelled" ? "" : `<div class="timeline">${steps.map((t, i) => `<div class="${i <= at ? "done" : ""}"><b>${i <= at ? icon("check", "", 16) : i + 1}</b>${t[0].toUpperCase() + t.slice(1)}</div>`).join("")}</div>`}
+        ${o.status === "cancelled" || o.status === "returned" ? `<p class="nudge">${icon("x")}<span>This order was ${o.status === "returned" ? "returned to us" : "cancelled"}. Questions? WhatsApp us on +${esc(state.store.contact.whatsapp)}.</span></p>` : `<div class="timeline">${steps.map((t, i) => `<div class="${i <= at ? "done" : ""}"><b>${i <= at ? icon("check", "", 16) : i + 1}</b>${t[0].toUpperCase() + t.slice(1)}</div>`).join("")}</div>`}
+        ${o.tracking ? `<div class="ship-box">${icon("truck")}<div><small>Shipped with ${esc(o.courier || "our courier")}</small><b>${esc(o.tracking)}</b></div><button class="btn ghost sm" data-copy="${esc(o.tracking)}">${icon("copy", "", 14)} Copy</button>${o.trackUrl ? `<a class="btn rani sm" href="${esc(o.trackUrl)}" target="_blank" rel="noopener">Track on ${esc(o.courier)}</a>` : ""}</div>` : ""}
         <div style="margin-top:24px">${o.items.map((i) => `<div class="sum-item" style="margin-bottom:10px"><div class="ph"><img src="${esc(img(i.image))}" alt="" referrerpolicy="no-referrer"><span class="q">${i.qty}</span></div><div><b>${esc(i.title)}</b><span style="color:var(--muted)">${esc(i.size)}</span></div><span>${rs(i.line)}</span></div>`).join("")}</div></div>`;
     } catch (err) { $("#tr", main).innerHTML = `<p style="color:#D0313F">${esc(err.message)}</p>`; }
   };
+  main.addEventListener("click", (e) => { const c = e.target.closest("[data-copy]"); if (c) navigator.clipboard?.writeText(c.dataset.copy).then(() => toast("Tracking number copied")); });
 }
 
 function admin(main) {
@@ -611,19 +631,58 @@ function admin(main) {
       <div class="kpis">${[["Revenue", rs(s.revenue)], ["Orders", s.orders], ["To process", s.pending], ["Waitlist (West)", s.waitlist], ["Subscribers", s.newsletter]].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
       <div class="tabs">${["orders", "stock", "waitlist", "newsletter", "leads", "messages"].map((t) => `<button data-tab="${t}" class="${t === tab ? "on" : ""}">${t}</button>`).join("")}${ext.adminTabs.map((t) => `<button data-tab="${esc(t.key)}" class="${t.key === tab ? "on" : ""}">${esc(t.label)}</button>`).join("")}</div>
       ${extTab ? `<div id="ext-tab"></div>` : ""}
-      ${extTab ? "" : tab === "orders" ? `<table><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr>${body.map((o) => `<tr><td><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString("en-GB")}</small></td><td>${esc(o.customer.name)}<br><small>+${esc(o.customer.phone)} · ${esc(o.customer.city)}</small><br><small>${esc(o.customer.address)}</small></td><td>${o.items.map((i) => `${esc(i.title)} (${esc(i.size)}) ×${i.qty}${lineExtras(i)}`).join("<br>")}${(o.credits || []).map((c) => `<br><small>${esc(c.label)} −${rs(c.amount)}</small>`).join("")}</td><td>${rs(o.total)}${o.coupon ? `<br><small>${esc(o.coupon)}</small>` : ""}</td><td>${esc(o.payment)}</td><td><select data-st="${esc(o.id)}">${["placed", "confirmed", "dispatched", "delivered", "cancelled"].map((x) => `<option ${x === o.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`).join("") || `<tr><td colspan="6">No orders yet.</td></tr>`}</table>`
+      ${extTab ? "" : tab === "orders" ? adminOrders(body)
       : tab === "stock" ? `<table><tr><th>Product</th><th>Stock by size</th></tr>${P().map((p) => `<tr><td><b>${esc(p.title)}</b><br><small>${esc(p.id)} · ${rs(p.price)}</small></td><td>${Object.entries(p.stock).map(([z, n]) => `<label style="margin-right:10px;white-space:nowrap">${esc(z)} <input type="number" min="0" value="${n}" style="width:64px" data-stock="${p.id}|${esc(z)}"></label>`).join("")}</td></tr>`).join("")}</table>`
       : `<table><tr><th>Contact / name</th><th>Details</th><th>Date</th></tr>${body.map((r) => `<tr><td>${esc(r.contact || r.name || "")}${r.email ? `<br><small>${esc(r.email)}</small>` : ""}</td><td>${esc(r.message || r.prize || r.interest || "")}</td><td>${new Date(r.at).toLocaleString("en-GB")}</td></tr>`).join("") || `<tr><td colspan="3">Nothing yet.</td></tr>`}</table>`}</section>`;
     if (extTab) try { await extTab.render($("#ext-tab", main), call); } catch (e) { $("#ext-tab", main).textContent = e.message; }
-    main.onclick = (e) => { const t = e.target.closest("[data-tab]"); if (t) dash(t.dataset.tab); if (e.target.closest("#out")) { sessionStorage.removeItem("az_admin"); login(); } };
+    main.onclick = async (e) => {
+      const ship = e.target.closest("[data-ship]");
+      if (ship) {
+        const row = ship.closest("[data-order]");
+        await call(`/api/admin/orders/${ship.dataset.ship}`, { courier: $("[data-courier]", row).value, tracking: $("[data-tracking]", row).value }, "PATCH");
+        toast("Courier & tracking saved");
+        return dash("orders");
+      }
+      const t = e.target.closest("[data-tab]"); if (t) dash(t.dataset.tab); if (e.target.closest("#out")) { sessionStorage.removeItem("az_admin"); login(); } };
     main.onchange = async (e) => {
       const st = e.target.closest("[data-st]");
-      if (st) { await call(`/api/admin/orders/${st.dataset.st}`, { status: st.value }, "PATCH"); toast(`Order ${esc(st.dataset.st)} → ${st.value}`); }
+      if (st) { await call(`/api/admin/orders/${st.dataset.st}`, { status: st.value }, "PATCH"); toast(`Order ${esc(st.dataset.st)} → ${st.value}`); dash("orders"); }
       const sk = e.target.closest("[data-stock]");
       if (sk) { const [id, size] = sk.dataset.stock.split("|"); await call("/api/admin/stock", { id, size, qty: Number(sk.value) }); state.byId[id].stock[size] = Number(sk.value); toast("Stock updated"); }
     };
   };
   pw ? dash().catch(login) : login();
+}
+
+// Admin orders: risk flags from the phone's order history, one-tap WhatsApp
+// messages (confirm / dispatched), courier + tracking number, and statuses.
+function adminOrders(orders) {
+  if (!orders.length) return `<div class="empty-state"><h3>No orders yet</h3><p>New orders appear here instantly.</p></div>`;
+  const s = state.store;
+  const byPhone = {};
+  for (const o of orders) (byPhone[o.customer.phone] ||= []).push(o);
+  const wa = (o, text) => `https://wa.me/${o.customer.phone}?text=${encodeURIComponent(text)}`;
+  const first = (o) => o.customer.name.split(" ")[0];
+  return `<div class="ao-list">${orders.map((o) => {
+    const others = byPhone[o.customer.phone].filter((x) => x.id !== o.id);
+    const refused = others.filter((x) => x.status === "returned").length;
+    const delivered = others.filter((x) => x.status === "delivered").length;
+    const risk = refused ? `<span class="status cancelled">⚠ Refused ${refused} before</span>` : delivered ? `<span class="status delivered">★ ${delivered} delivered before</span>` : others.length ? `<span class="status confirmed">${others.length} earlier order${others.length > 1 ? "s" : ""}</span>` : `<span class="status">First order</span>`;
+    const confirmMsg = `Assalam o Alaikum ${first(o)}! This is ${s.name}. Please reply YES to confirm your order ${o.id} of ${rs(o.total)}${o.payment === "cod" ? " (cash on delivery)" : ""}, delivering to ${o.customer.address}, ${o.customer.city}. Shukriya!`;
+    const shipMsg = `Good news ${first(o)}! Your ${s.name} order ${o.id} has been dispatched${o.courier ? ` with ${o.courier}` : ""}${o.tracking ? `, tracking number ${o.tracking}` : ""}.${o.payment === "cod" ? ` Please keep ${rs(o.total)} ready for the rider.` : ""} Track: ${location.origin}/track?id=${o.id}`;
+    return `<article class="ao" data-order="${esc(o.id)}">
+      <header><b>${esc(o.id)}</b><small>${new Date(o.createdAt).toLocaleString("en-GB")}</small><span class="status ${o.status}">${o.status}</span>${risk}<span class="ao-total">${rs(o.total)} · ${esc(o.payment)}${o.coupon ? ` · ${esc(o.coupon)}` : ""}</span></header>
+      <div class="ao-body">
+        <div><b>${esc(o.customer.name)}</b><br><a href="tel:+${esc(o.customer.phone)}">+${esc(o.customer.phone)}</a>${o.customer.email ? ` · ${esc(o.customer.email)}` : ""}<br><small>${esc(o.customer.address)}, ${esc(o.customer.city)}</small>${o.customer.notes ? `<br><small><i>${esc(o.customer.notes)}</i></small>` : ""}</div>
+        <div>${o.items.map((i) => `${esc(i.title)} (${esc(i.size)}) ×${i.qty}${lineExtras(i)}`).join("<br>")}${(o.credits || []).map((c) => `<br><small>${esc(c.label)} −${rs(c.amount)}</small>`).join("")}</div>
+        <div class="ao-actions">
+          <a class="btn wa sm" href="${esc(wa(o, confirmMsg))}" target="_blank" rel="noopener">${icon("whatsapp", "", 14)} Confirm</a>
+          <a class="btn ghost sm" href="${esc(wa(o, shipMsg))}" target="_blank" rel="noopener">${icon("truck", "", 14)} Dispatch msg</a>
+          <select data-st="${esc(o.id)}" aria-label="Status">${["placed", "confirmed", "dispatched", "delivered", "cancelled", "returned"].map((x) => `<option ${x === o.status ? "selected" : ""}>${x}</option>`).join("")}</select>
+          <span class="ao-ship"><select data-courier aria-label="Courier"><option value="">Courier…</option>${(s.couriers || []).map((c) => `<option ${c.name === o.courier ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select><input data-tracking placeholder="Tracking no." value="${esc(o.tracking || "")}"><button class="btn sm" data-ship="${esc(o.id)}">Save</button></span>
+        </div>
+      </div></article>`;
+  }).join("")}</div>`;
 }
 
 function notFound(main) {

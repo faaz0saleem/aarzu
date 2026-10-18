@@ -283,6 +283,8 @@ async function render({ replace = false } = {}) {
   });
   if (!replace) scrollTo({ top: 0, behavior: "instant" });
   fillSlots(view, { url });
+  const h1 = view.querySelector("h1")?.textContent.replace(/\s+/g, " ").trim();
+  document.title = url.pathname === "/" || !h1 ? "Aarzu · Shalwar Kameez with the Soul of Pakistan" : `${h1} | Aarzu`;
   reveal(view);
   for (const fn of ext.routeHooks) try { fn(url, view); } catch (e) { console.error(e); }
 }
@@ -312,10 +314,12 @@ async function loadFeatures() {
   await Promise.all(FEATURES.map(async (name) => {
     try {
       const m = await import(`./features/${name}.js`);
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = `/css/features/${name}.css`;
-      document.head.append(link);
+      if (m.css !== false) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = `/css/features/${name}.css`;
+        document.head.append(link);
+      }
       await m.init?.();
     } catch (e) {
       console.warn(`[feature ${name}] not loaded:`, e.message);

@@ -1,6 +1,7 @@
 // Aarzu storefront server: static site + JSON API. Zero dependencies.
 //   npm start            -> http://localhost:3000
 //   PORT=8080 npm start  -> custom port
+import "./lib/env.mjs";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,12 +12,20 @@ import { JsonStore } from "./lib/db.mjs";
 import { Catalog } from "./lib/catalog.mjs";
 import { serveImage } from "./lib/imgproxy.mjs";
 import { priceCart } from "./public/js/pricing.js";
+import { scheduleBackups } from "./lib/backup.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, "public");
 const DATA = path.join(ROOT, "data");
 const PORT = Number(process.env.PORT) || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "aarzu-admin";
+const PRODUCTION = process.env.NODE_ENV === "production";
+if (PRODUCTION && (!process.env.ADMIN_PASSWORD || ADMIN_PASSWORD.length < 10 || ADMIN_PASSWORD === "aarzu-admin")) {
+  console.error("Refusing to start in production without a strong ADMIN_PASSWORD (10+ characters) in .env");
+  process.exit(1);
+}
+const STATUSES = ["placed", "confirmed", "dispatched", "delivered", "cancelled", "returned"];
+const RESTOCK = new Set(["cancelled", "returned"]);
 
 const db = new JsonStore(path.join(DATA, "runtime"));
 const catalog = new Catalog(DATA, path.join(PUBLIC, "images", "originals", "photos"), db);
@@ -52,7 +61,7 @@ const COMPRESSIBLE = /^(text\/|application\/json|image\/svg|application\/manifes
 
 function send(req, res, status, body, type = "application/json; charset=utf-8", extra = {}) {
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
-  const headers = { "Content-Type": type, "X-Content-Type-Options": "nosniff", ...extra };
+  const headers = { "Content-Type": type, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin", "X-Frame-Options": "SAMEORIGIN", ...extra };
   if (buf.length > 1024 && COMPRESSIBLE.test(type) && /\bgzip\b/.test(req.headers["accept-encoding"] || "")) {
     buf = zlib.gzipSync(buf);
     headers["Content-Encoding"] = "gzip";
@@ -95,6 +104,29 @@ const normPhone = (p) => {
   return null;
 };
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || ""));
+
+// Real client IP; behind a reverse proxy (Caddy/nginx) set TRUST_PROXY=1.
+const clientIp = (req) => (process.env.TRUST_PROXY === "1" && String(req.headers["x-forwarded-for"] || "").split(",")[0].trim()) || req.socket.remoteAddress || "?";
+
+// Sliding-window limiter to stop order spam / fake-order floods.
+const hits = new Map();
+function limited(key, max, windowMs) {
+  const now = Date.now();
+  const list = (hits.get(key) || []).filter((t) => now - t < windowMs);
+  list.push(now);
+  hits.set(key, list);
+  if (hits.size > 5000) for (const [k, v] of hits) if (!v.some((t) => now - t < windowMs)) hits.delete(k);
+  return list.length > max;
+}
+
+// Cash-on-delivery rules from store.json "cod": made-to-measure stitching and very
+// large orders need an advance (bank transfer / wallet) so refusals can't cost the store.
+function codBlocked(quote) {
+  const rules = store().cod || {};
+  if (rules.maxTotal && quote.total > rules.maxTotal) return `Cash on delivery is available up to Rs ${rules.maxTotal.toLocaleString("en-PK")}. Please pay by bank transfer or JazzCash/Easypaisa.`;
+  if (rules.advanceForAddons?.length && quote.items.some((i) => (i.addons || []).some((a) => rules.advanceForAddons.includes(a.key)))) return "Stitched-to-measure orders need advance payment by bank transfer or JazzCash/Easypaisa.";
+  return null;
+}
 
 function resolveCoupon(code, phone) {
   if (!code) return { coupon: null };
@@ -164,6 +196,7 @@ async function api(req, res, url) {
     const b = await readBody(req);
     const c = b.customer || {};
     const phone = normPhone(c.phone);
+    if (b.website) return fail(req, res, 400, "Something went wrong. Please try again."); // honeypot: only bots fill it
     const errors = {};
     if (clean(c.name).length < 2) errors.name = "Please enter your full name.";
     if (!phone) errors.phone = "Enter a valid Pakistani mobile number, e.g. 0300 1234567.";
@@ -172,6 +205,8 @@ async function api(req, res, url) {
     if (clean(c.address, 500).length < 8) errors.address = "Please enter your full delivery address.";
     if (!["cod", "bank", "wallet"].includes(b.payment)) errors.payment = "Choose a payment method.";
     if (Object.keys(errors).length) return json(req, res, 422, { error: "Please check the highlighted fields.", errors });
+    // Flood protection (counted only for complete orders; mobile networks share IPs, so the IP limit is generous)
+    if (limited(`ip:${clientIp(req)}`, 30, 3600e3) || limited(`ph:${phone}`, 5, 86400e3)) return fail(req, res, 429, "Too many orders in a short time. Please WhatsApp us and we'll help.");
 
     const r = resolveCoupon(b.code, c.phone);
     if (r.error) return json(req, res, 422, { error: r.error, errors: { code: r.error } });
@@ -180,6 +215,8 @@ async function api(req, res, url) {
     const items = (Array.isArray(b.items) ? b.items : []).map((l) => ({ ...l, meta: cleanMeta(l.meta) }));
     const quote = priceCart(items, catalog.byId, store(), r.coupon, { credits });
     if (!quote.items.length) return fail(req, res, 400, "Your bag is empty.");
+    const cod = b.payment === "cod" && codBlocked(quote);
+    if (cod) return json(req, res, 422, { error: cod, errors: { payment: cod } });
     const need = {};
     for (const i of quote.items) need[`${i.id}|${i.size}`] = (need[`${i.id}|${i.size}`] || 0) + i.qty;
     for (const [k, qty] of Object.entries(need)) {
@@ -222,8 +259,9 @@ async function api(req, res, url) {
     const phone = normPhone(url.searchParams.get("phone"));
     const o = db.get("orders", []).find((x) => x.id === track[1]);
     if (!o || o.customer.phone !== phone) return fail(req, res, 404, "We couldn't find an order with that number and phone.");
-    const { customer, ...rest } = o;
-    return json(req, res, 200, { ...rest, customer: { name: customer.name, city: customer.city } });
+    const { customer, adminNote, ...rest } = o;
+    const courier = (store().couriers || []).find((x) => x.name === o.courier);
+    return json(req, res, 200, { ...rest, trackUrl: courier?.track ? courier.track.replace("{cn}", encodeURIComponent(o.tracking || "")) : null, customer: { name: customer.name, city: customer.city } });
   }
 
   if (p === "/api/activity" && M === "GET") {
@@ -291,14 +329,18 @@ async function api(req, res, url) {
     const st = p.match(/^\/api\/admin\/orders\/([A-Z0-9]+)$/);
     if (st && M === "PATCH") {
       const b = await readBody(req);
-      if (!["placed", "confirmed", "dispatched", "delivered", "cancelled"].includes(b.status)) return fail(req, res, 400, "Bad status");
       const orders = db.get("orders", []);
       const o = orders.find((x) => x.id === st[1]);
       if (!o) return fail(req, res, 404, "No such order");
-      if (b.status === "cancelled" && o.status !== "cancelled") for (const i of o.items) catalog.setStock(i.id, i.size, (catalog.stockOf(catalog.byId[i.id] || { stock: {} })[i.size] || 0) + i.qty);
+      if (b.courier !== undefined) o.courier = clean(b.courier, 40) || null;
+      if (b.tracking !== undefined) o.tracking = clean(b.tracking, 60) || null;
+      if (b.adminNote !== undefined) o.adminNote = clean(b.adminNote, 500);
+      const status = b.status ?? o.status;
+      if (!STATUSES.includes(status)) return fail(req, res, 400, "Bad status");
+      if (RESTOCK.has(status) && !RESTOCK.has(o.status)) for (const i of o.items) if (catalog.byId[i.id]) catalog.setStock(i.id, i.size, (catalog.stockOf(catalog.byId[i.id])[i.size] || 0) + i.qty);
       const prevStatus = o.status;
-      o.status = b.status;
-      o.history.push({ status: b.status, at: new Date().toISOString() });
+      o.status = status;
+      if (status !== prevStatus) o.history.push({ status, at: new Date().toISOString() });
       db.set("orders", orders);
       for (const m of modules) if (m.onOrderStatus) try { await m.onOrderStatus(o, prevStatus, ctx); } catch (e) { console.warn(`[${m.name}] onOrderStatus: ${e.message}`); }
       return json(req, res, 200, o);
@@ -349,9 +391,47 @@ function publicStore() {
 
 // ------------------------------------------------------------------ static
 
-const indexHtml = () => fs.readFileSync(path.join(PUBLIC, "index.html"));
+const indexHtml = () => fs.readFileSync(path.join(PUBLIC, "index.html"), "utf8");
+const originOf = (req) => process.env.SITE_URL?.replace(/\/$/, "") || `${req.headers["x-forwarded-proto"] === "https" ? "https" : "http"}://${req.headers.host || "localhost"}`;
+const attr = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// Link previews on WhatsApp/Facebook/Instagram don't run JavaScript, so the
+// server writes the title, description and image for each page into the HTML.
+function pageHtml(req, url) {
+  const origin = originOf(req);
+  let title = "Aarzu · Shalwar Kameez with the Soul of Pakistan";
+  let desc = "Designer favourites for less and our own Aarzu Originals. Cash on delivery all over Pakistan.";
+  let image = `${origin}/brand/aarzu-logo-stacked.png`;
+  let type = "website";
+  const m = url.pathname.match(/^\/product\/([\w-]+)/);
+  const p = m && catalog.bySlug[m[1]];
+  if (p) {
+    title = `${p.title} · Rs ${p.price.toLocaleString("en-PK")} | Aarzu`;
+    desc = String(p.description || "").slice(0, 200);
+    const im = p.images[0] || "";
+    image = /^https?:/.test(im) ? im : origin + im;
+    type = "product";
+  } else if (url.pathname.startsWith("/shop")) title = "Shop shalwar kameez | Aarzu";
+  else if (url.pathname.startsWith("/western")) title = "Aarzu West · Coming soon";
+  const noindex = /^\/(admin|checkout|order|account)/.test(url.pathname);
+  const tags = `<meta property="og:site_name" content="Aarzu"><meta property="og:type" content="${type}"><meta property="og:title" content="${attr(title)}"><meta property="og:description" content="${attr(desc)}"><meta property="og:image" content="${attr(image)}"><meta property="og:url" content="${attr(origin + url.pathname)}"><meta name="twitter:card" content="summary_large_image"><link rel="canonical" href="${attr(origin + url.pathname)}">${noindex ? '<meta name="robots" content="noindex">' : ""}${p ? `<meta property="product:price:amount" content="${p.price}"><meta property="product:price:currency" content="PKR">` : ""}`;
+  return indexHtml()
+    .replace(/<title>[^<]*<\/title>/, `<title>${attr(title)}</title>`)
+    .replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${attr(desc)}">`)
+    .replace("</head>", `  ${tags}\n</head>`);
+}
+
+function sitemap(req) {
+  const o = originOf(req);
+  const pages = ["/", "/shop", "/shop?gender=women", "/shop?gender=men", "/shop?category=accessory", "/shop?collection=originals", "/western", "/about", "/faq", "/size-guide", "/shipping", "/contact", "/privacy", "/terms", "/returns-policy", "/stitching", "/gift-cards", "/rewards"];
+  const urls = [...pages.map((u) => o + u), ...catalog.publicList().filter((p) => !p.unlisted).map((p) => `${o}/product/${p.slug}`)];
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${attr(u)}</loc></url>`).join("\n")}\n</urlset>\n`;
+}
 
 function serveStatic(req, res, url) {
+  if (url.pathname === "/robots.txt") return send(req, res, 200, `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /checkout\nDisallow: /api/\nDisallow: /img\nSitemap: ${originOf(req)}/sitemap.xml\n`, MIME[".txt"]);
+  if (url.pathname === "/sitemap.xml") return send(req, res, 200, sitemap(req), "application/xml; charset=utf-8");
+  if (url.pathname === "/" || url.pathname === "/index.html") return send(req, res, 200, pageHtml(req, url), MIME[".html"], { "Cache-Control": "no-cache" });
   let rel = decodeURIComponent(url.pathname);
   const file = path.normalize(path.join(PUBLIC, rel));
   if (!file.startsWith(PUBLIC)) return fail(req, res, 403, "Forbidden");
@@ -363,8 +443,8 @@ function serveStatic(req, res, url) {
       return send(req, res, 200, fs.readFileSync(file), type, { "Cache-Control": cache });
     }
     if (path.extname(rel)) return send(req, res, 404, "Not found", "text/plain; charset=utf-8");
-    // Single-page app: every page route gets index.html
-    send(req, res, 200, indexHtml(), MIME[".html"], { "Cache-Control": "no-cache" });
+    // Single-page app: every page route gets index.html (with that page's preview tags)
+    send(req, res, 200, pageHtml(req, url), MIME[".html"], { "Cache-Control": "no-cache" });
   });
 }
 
@@ -381,10 +461,12 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+scheduleBackups();
+
 server.listen(PORT, () => {
   console.log(`\n  ✿ Aarzu is live → http://localhost:${PORT}`);
   console.log(`    ${catalog.products.length} products loaded · ${modules.length} feature modules · admin at /admin`);
-  if (!process.env.ADMIN_PASSWORD) console.log(`    (admin password is the default "aarzu-admin"; set ADMIN_PASSWORD to change it)`);
+  if (!process.env.ADMIN_PASSWORD) console.log(`    (admin password is the default "aarzu-admin"; set ADMIN_PASSWORD in .env before going live)`);
   brandHint();
 });
 

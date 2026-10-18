@@ -184,5 +184,49 @@
         }
       }
     }
+  },
+  "cod": {
+    "maxTotal": 30000,
+    "advanceForAddons": [
+      "stitching"
+    ]
+  },
+  "payments": {
+    "bank": {
+      "details": "Bank: YOUR BANK NAME\nAccount title: YOUR ACCOUNT TITLE\nIBAN: PK00 XXXX 0000 0000 0000 0000"
+    },
+    "wallet": {
+      "details": "JazzCash / Easypaisa: 03XX XXXXXXX (ACCOUNT NAME)"
+    }
+  },
+  "couriers": [
+    {
+      "name": "PostEx",
+      "track": "https://postex.pk/tracking"
+    },
+    {
+      "name": "Leopards",
+      "track": "https://www.leopardscourier.com/leopards-tracking"
+    },
+    {
+      "name": "TCS",
+      "track": "https://www.tcsexpress.com/track"
+    },
+    {
+      "name": "Trax",
+      "track": "https://trax.pk/"
+    },
+    {
+      "name": "M&P",
+      "track": "https://www.mulphilog.com/"
+    },
+    {
+      "name": "Call Courier",
+      "track": "https://callcourier.com.pk/"
+    }
+  ],
+  "analytics": {
+    "metaPixelId": "",
+    "ga4Id": ""
   }
 }

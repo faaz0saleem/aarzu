@@ -9,7 +9,9 @@ npm start            # http://localhost:3000  (Node 20+, no dependencies)
 PORT=8080 npm start  # another port
 ```
 
-Admin dashboard: `/admin` (password `aarzu-admin`, change it with `ADMIN_PASSWORD=...`).
+Admin dashboard: `/admin`. The password is `aarzu-admin` locally; set `ADMIN_PASSWORD` in `.env` before going live.
+
+**Going live:** follow [DEPLOY.md](DEPLOY.md). It covers the domain, server, free HTTPS, order alerts, backups and the daily order routine. Settings and secrets go in `.env` (copy `.env.example`).
 
 ## Adding products
 
@@ -40,6 +42,19 @@ Feature modules live in `public/js/features/` (with matching `public/css/feature
 - **stitching**: darzi service on unstitched suits (standard / designer, size or custom measurements, style choices), a `/stitching` page and a "Stitching jobs" admin tab with printable job cards. Prices come from `addons.stitching` in `data/store.json`.
 - **giftcards**: `/gift-cards` with Rs 2,000–25,000 digital cards (`data/catalog.giftcards.json`). Codes are created with the order, activate when you mark the order confirmed, and can be redeemed at checkout. There is a "Gift cards" admin tab.
 - **account**: sign up / sign in by phone, `/account` dashboard (orders, addresses, profile), Aarzu Rewards points (200 welcome points, 1 point per Rs 100 earned on delivery, redeem 500+ at checkout), and a "Customers" admin tab.
+- **policies**: `/privacy`, `/terms` and `/returns-policy`.
+- **analytics**: Meta Pixel and Google Analytics 4. Off until you add IDs under `analytics` in `data/store.json`.
+
+## Taking orders safely
+
+- **Order alerts:** an email and/or Telegram alert for every new order, plus branded emails to customers (received, dispatched with tracking, delivered, cancelled). Set it up in `.env` and check it with `npm run test-alerts`.
+- **Cash-on-delivery protection:** set under `cod` in `store.json`.
+  - Stitched-to-measure orders and orders above `maxTotal` need advance payment.
+  - The admin flags phone numbers that refused deliveries before.
+  - Order floods and bots are blocked.
+- **Couriers:** couriers are listed in `couriers` in `store.json`. Add a courier and tracking number per order in admin; customers see them on the Track page. The "returned" status puts the stock back.
+- **Link previews:** product links shared on WhatsApp or Facebook show the photo, name and price. There is also `/sitemap.xml` and `/robots.txt` for Google.
+- **Backups:** data in `data/runtime/` is copied to `data/backups/<date>/` every 6 hours, keeping 30 days. Run one by hand with `npm run backup`.
 
 ## Brand assets
 
