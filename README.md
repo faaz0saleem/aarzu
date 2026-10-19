@@ -44,6 +44,20 @@ Feature modules live in `public/js/features/` (with matching `public/css/feature
 - **account**: sign up / sign in by phone, `/account` dashboard (orders, addresses, profile), Aarzu Rewards points (200 welcome points, 1 point per Rs 100 earned on delivery, redeem 500+ at checkout), and a "Customers" admin tab.
 - **policies**: `/privacy`, `/terms` and `/returns-policy`.
 - **analytics**: Meta Pixel and Google Analytics 4. Off until you add IDs under `analytics` in `data/store.json`.
+- **guides**: "Find my size" on ready-to-wear product pages (height, weight and fit, remembered on the shopper's device), a `/fabric-guide` page, and wash & care tips on every product.
+- **alerts**:
+  - **Back in stock:** "Notify me when it's back" on sold-out sizes. Shoppers with an email are emailed automatically when you restock. The "Restock requests" admin tab has WhatsApp links for everyone else.
+  - **Abandoned bags:** checkouts that were started but not finished show in an admin tab with a polite WhatsApp follow-up link.
+  - **Eid:** an `/eid` page with a countdown and an order-by date. A homepage banner appears 45 days before. Set the date under `festive` in `data/store.json`.
+- **adminpro**:
+  - **Insights** tab: revenue chart, top products, cities with refusal rates, cash on delivery vs prepaid, and new vs returning customers.
+  - **Coupons** tab: create codes with an expiry date, a use limit and a minimum order.
+  - **Exports** tab: orders as Excel/CSV, plus a courier bulk-booking sheet.
+  - **Invoices:** printable invoices and packing slips from each order.
+- **pwa**:
+  - Customers can install Aarzu on their phone like an app.
+  - Pages they've visited still open offline.
+  - Google gets product price and stock details for search results.
 
 ## Taking orders safely
 

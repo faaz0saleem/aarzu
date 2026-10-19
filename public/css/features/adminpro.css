@@ -1,0 +1,221 @@
+/* ==========================================================================
+   Aarzu admin tools: insights, coupons, exports, invoices / packing slips
+   ========================================================================== */
+
+.ap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.ap-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px 20px; flex-wrap: wrap; }
+.ap-head h3 { font-size: 2rem; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.ap-head .ur { font-family: var(--urdu); font-size: 1.3rem; color: var(--gold); }
+.ap-head p, .ap-muted { margin: 6px 0 0; color: var(--muted); font-size: .9rem; }
+.ap-error { margin: 0; padding: 14px 16px; border-radius: 14px; background: #FCE4E4; color: var(--crimson); }
+.ap-range { display: flex; gap: 8px; flex-wrap: wrap; }
+.ap-range .chip { min-height: 38px; }
+#ap-ins { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; transition: opacity .25s; }
+#ap-ins.ap-loading { opacity: .45; pointer-events: none; }
+.ap-empty { padding: 50px 20px; background: #fff; border: 1px solid var(--line); border-radius: 20px; }
+
+/* KPIs */
+.ap-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ap-kpis .kpi { display: grid; align-content: start; gap: 4px; }
+.ap-kpis .kpi b { font-size: 2rem; font-variant-numeric: lining-nums tabular-nums; }
+.ap-kpis .kpi small { color: var(--ink-2); font-size: .76rem; line-height: 1.35; }
+
+/* cards */
+.ap-card { min-width: 0; padding: 18px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line); display: grid; align-content: start; gap: 14px; }
+.ap-card-head { display: grid; gap: 3px; }
+.ap-card-head h4 { font-size: 1.45rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ap-card-head small { color: var(--muted); font-size: .8rem; }
+.ap-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.ap-note { margin: 0; font-size: .86rem; color: var(--ink-2); }
+.ap-foot { margin: 0; font-size: .76rem; color: var(--muted); line-height: 1.45; }
+.ap-dim { color: var(--muted); }
+.ap-warn { color: var(--crimson); font-weight: 600; }
+.ap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; }
+
+/* tables (inside .admin they already get the admin table look) */
+.ap-table { min-width: 420px; box-shadow: none !important; border-radius: 0 !important; }
+.ap-table td small { display: block; color: var(--muted); font-size: .74rem; margin-top: 2px; }
+.ap .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ap .rank { width: 30px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ap-code { font: 600 .82rem/1 var(--sans); letter-spacing: .08em; padding: 4px 8px; border-radius: 6px; background: var(--ivory); white-space: nowrap; }
+.ap .status.returned, .ap-sheet .status.returned { background: #EEE9EF; color: var(--ink-2); }
+.ap-statuses { display: flex; gap: 6px; flex-wrap: wrap; }
+.ap-more summary { cursor: pointer; font-size: .82rem; font-weight: 500; color: var(--rani); }
+.ap-more[open] summary { margin-bottom: 10px; }
+.ap-more table { min-width: 420px; }
+
+/* big number */
+.ap-big { display: grid; gap: 2px; }
+.ap-big b { font: 600 2.6rem/1 var(--serif); font-variant-numeric: lining-nums; }
+.ap-big span { font-size: .84rem; color: var(--ink-2); }
+.ap-big.warn b { color: var(--crimson); }
+
+/* stacked share bar + legend (2px surface gap between segments) */
+.ap-stack { display: flex; gap: 2px; height: 14px; border-radius: 4px; overflow: hidden; background: var(--line); }
+.ap-stack span { min-width: 3px; }
+.ap-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ap-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; font-size: .88rem; }
+.ap-legend i { width: 12px; height: 12px; border-radius: 3px; }
+.ap-legend b { font-variant-numeric: tabular-nums; }
+.ap-legend small { grid-column: 2 / -1; color: var(--muted); font-size: .76rem; }
+
+/* revenue chart */
+.ap-chart { position: relative; width: 100%; min-height: 230px; touch-action: pan-y; }
+.ap-chart svg { display: block; overflow: visible; }
+.ap-chart .t { font: 500 11px/1 var(--sans); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.ap-chart .t.peak { fill: var(--ink); font-weight: 600; }
+.ap-chart .g { stroke: rgba(30, 19, 36, .07); stroke-width: 1; }
+.ap-chart .base { stroke: rgba(30, 19, 36, .28); stroke-width: 1; }
+.ap-chart .bar { fill: var(--rani); transition: fill .15s; }
+.ap-chart .bar.on { fill: var(--rani-deep); }
+.ap-chart .hit { fill: transparent; cursor: crosshair; }
+.ap-tip { position: absolute; z-index: 2; transform: translate(-50%, -100%); display: grid; gap: 2px; padding: 8px 11px; border-radius: 10px; background: var(--ink); color: #fff; font-size: .78rem; line-height: 1.3; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow); }
+.ap-tip span { font-weight: 600; font-size: .92rem; font-variant-numeric: tabular-nums; }
+.ap-tip small { color: rgba(255, 255, 255, .7); }
+
+/* pills */
+.ap-pill { display: inline-block; padding: 5px 10px; border-radius: 999px; font: 600 .66rem/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.ap-pill.ok { background: #DDF3EA; color: var(--emerald); }
+.ap-pill.warn { background: #FFF1D6; color: #9A5B00; }
+.ap-pill.muted { background: #EEE9EF; color: var(--ink-2); }
+
+/* -------------------------------------------------------------- coupons */
+.ap-cp { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.ap-cp-lists { display: grid; gap: 18px; min-width: 0; }
+.ap-form { position: sticky; top: calc(var(--header-h) + 16px); gap: 14px; }
+.ap .field input, .ap .field select { padding: 11px 13px; border: 0; border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--line); font-size: .94rem; min-height: 44px; }
+.ap .field input:focus, .ap .field select:focus { box-shadow: inset 0 0 0 2px var(--rani); }
+.ap .field.err input { box-shadow: inset 0 0 0 2px #D0313F; }
+.ap .field[hidden] { display: none; }
+.ap #ap-code { text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+.ap-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: var(--ivory); box-shadow: inset 0 0 0 1px var(--line); }
+.ap-seg label { position: relative; display: block; font: 500 .8rem/1.2 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink); cursor: pointer; }
+.ap-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.ap-seg span { display: grid; place-items: center; min-height: 40px; padding: 6px; border-radius: 10px; text-align: center; transition: background .2s, color .2s; }
+.ap-seg input:checked + span { background: var(--ink); color: #fff; }
+.ap-seg input:focus-visible + span { outline: 2px solid var(--rani); outline-offset: 2px; }
+.ap-check { align-items: flex-start; padding: 4px 0; }
+.ap .ap-check input { flex: none; width: 20px; height: 20px; padding: 0; margin-top: 2px; border: 0; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.ap .ap-check input:checked { background: var(--rani); box-shadow: none; }
+.ap-check span { display: grid; gap: 2px; }
+.ap-check small { color: var(--muted); font-size: .76rem; }
+.ap-form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.ap-form-actions .btn { flex: 1 1 auto; }
+.ap-codes { min-width: 640px; }
+.ap-row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ap-row-actions .btn.sm { min-height: 34px; padding: 0 12px; font-size: .64rem; }
+.ap-empty-sm { display: grid; justify-items: center; gap: 4px; padding: 26px 16px; border-radius: 14px; border: 1.5px dashed var(--line); text-align: center; }
+.ap-empty-sm .ur { font-family: var(--urdu); font-size: 2.2rem; line-height: 1.6; color: var(--gold); }
+.ap-empty-sm p { margin: 0; max-width: 360px; color: var(--ink-2); font-size: .88rem; }
+
+/* -------------------------------------------------------------- exports */
+.ap-ex { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
+.ap-ex-card { grid-template-rows: auto auto 1fr auto; }
+.ap-ex-card > .btn { justify-self: start; white-space: normal; text-align: center; line-height: 1.3; min-height: 48px; }
+.ap-ex-ic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #E43F7B, var(--rani-deep)); }
+.ap-ex-card:nth-child(2) .ap-ex-ic { background: linear-gradient(135deg, #12806A, var(--emerald)); }
+.ap-ex-card:nth-child(3) .ap-ex-ic { background: linear-gradient(135deg, #3D53AE, var(--indigo)); }
+
+/* -------------------------------------------------------------- invoice / packing slip */
+.ap-inv-login { max-width: 460px; padding-block: 60px; }
+.ap-inv-login .card-box { display: grid; gap: 14px; }
+.ap-inv-login h1 { font-size: 2.2rem; }
+.ap-inv-login p { margin: 0; color: var(--ink-2); }
+.ap-inv-login .link { justify-self: center; font-size: .86rem; }
+.ap-inv-bar { background: #fff; border-bottom: 1px solid var(--line); }
+.ap-inv-bar .wrap { display: flex; align-items: center; gap: 12px 18px; flex-wrap: wrap; padding-block: 14px; }
+.ap-inv-bar h1 { flex: 1 1 200px; font-size: 1.6rem; }
+.ap-inv-bar .link { font-size: .86rem; }
+.ap-paper { display: flex; gap: 6px; }
+.ap-paper .chip { min-height: 38px; }
+.ap-inv-skip { margin: 0; padding-bottom: 12px; font-size: .84rem; color: var(--muted); }
+.ap-sheets { display: grid; justify-items: center; gap: 28px; padding: 28px var(--gut) 60px; background: var(--sand); }
+.ap-sheets > .empty-state { width: min(640px, 100%); }
+
+.ap-sheet { --ink-p: #16121A; width: min(210mm, 100%); min-height: 120mm; display: grid; align-content: start; gap: 5mm; padding: 13mm 14mm; background: #fff; color: var(--ink-p); border-radius: 6px; box-shadow: 0 20px 50px -24px rgba(30, 19, 36, .45); font-size: 10pt; line-height: 1.45; }
+.ap-sheet.a5 { width: min(148mm, 100%); padding: 8mm 8.5mm; gap: 3.6mm; font-size: 8.6pt; }
+.ap-sheet h6 { margin: 0 0 1.5mm; font: 600 7.5pt/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; color: #6B5E70; }
+.ap-sheet p { margin: 0; }
+.ap-sh-head { display: flex; justify-content: space-between; align-items: center; gap: 6mm; }
+.ap-sh-logo { width: 46mm; height: auto; }
+.ap-sheet.a5 .ap-sh-logo { width: 34mm; }
+.ap-sh-shop { text-align: right; font-size: .86em; color: #4B3D50; }
+.ap-sh-title { display: flex; justify-content: space-between; align-items: flex-end; gap: 4mm; padding: 2.6mm 0; border-block: 2px solid var(--ink-p); }
+.ap-sh-title span { display: block; font: 600 .72em/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: #6B5E70; }
+.ap-sh-title b { display: block; margin-top: 1.4mm; font: 600 1.9em/1 var(--serif); letter-spacing: .02em; font-variant-numeric: lining-nums; }
+.ap-sh-meta { display: grid; justify-items: end; gap: 1.4mm; }
+.ap-sh-meta small { font-size: .9em; color: #4B3D50; }
+.ap-sh-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 6mm; }
+.ap-sh-name { font-size: 1.25em; }
+.ap-sh-grid p + p { margin-top: 1mm; }
+.ap-sh-notes { padding: 1.6mm 2.4mm; border-radius: 4px; background: #FFF6E1; font-size: .92em; }
+.ap-sh-grid dl { display: grid; grid-template-columns: auto 1fr; gap: 1mm 4mm; margin: 0; }
+.ap-sh-grid dt { color: #6B5E70; }
+.ap-sh-grid dd { margin: 0; font-weight: 500; }
+.ap-sh-items { width: 100%; border-collapse: collapse; }
+.ap-sh-items th { padding: 1.6mm 2mm; text-align: left; font: 600 .72em/1.2 var(--sans); letter-spacing: .14em; text-transform: uppercase; border-bottom: 1.5px solid var(--ink-p); }
+.ap-sh-items td { padding: 2mm; border-bottom: 1px dashed #CFC6D2; vertical-align: top; }
+.ap-sh-items .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ap-sh-items td b { font-weight: 600; }
+.ap-sh-items td small, .ap-addon { display: block; font-size: .88em; color: #4B3D50; }
+.ap-addon { font-weight: 500; }
+.ap-sh-items .ap-digital { font-style: italic; }
+.ap-sh-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items: start; break-inside: avoid; }
+.ap-sh-totals { display: grid; gap: 1mm; font-variant-numeric: tabular-nums; }
+.ap-sh-totals div { display: flex; justify-content: space-between; gap: 4mm; }
+.ap-sh-totals .disc { color: #0B5D4B; }
+.ap-sh-totals .total { margin-top: 1mm; padding-top: 1.6mm; border-top: 2px solid var(--ink-p); font-weight: 700; font-size: 1.2em; }
+.ap-collect { display: grid; gap: 1mm; padding: 3mm 4mm; border: 3px solid var(--ink-p); border-radius: 6px; }
+.ap-collect span { font: 600 .74em/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; }
+.ap-collect b { font: 700 2.1em/1.05 var(--sans); letter-spacing: .02em; font-variant-numeric: lining-nums; }
+.ap-collect small { font-size: .9em; }
+.ap-collect strong { display: block; margin-top: 1mm; color: #9A1F2E; }
+.ap-collect.cod { background: #FFF1D6; }
+.ap-collect.paid { background: #E6F5EE; border-style: double; border-width: 4px; }
+.ap-sh-thanks { display: grid; justify-items: center; gap: 1mm; padding-top: 3mm; border-top: 1px dashed #CFC6D2; text-align: center; }
+.ap-sh-thanks .urdu { font-size: 1.35em; line-height: 2; }
+.ap-sh-thanks small { font-size: .84em; color: #4B3D50; }
+
+/* -------------------------------------------------------------- responsive */
+@media (max-width: 1180px) {
+  .ap-cp { grid-template-columns: minmax(0, 1fr); }
+  .ap-form { position: static; }
+  .ap-ex { grid-template-columns: minmax(0, 1fr); }
+  .ap-ex-card { grid-template-rows: none; }
+}
+@media (max-width: 900px) {
+  .ap-grid { grid-template-columns: minmax(0, 1fr); }
+  .ap-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .ap-head h3 { font-size: 1.7rem; }
+  .ap-card { padding: 16px 14px; border-radius: 16px; }
+  .ap-kpis .kpi { padding: 14px; }
+  .ap-kpis .kpi b { font-size: 1.5rem; }
+  .ap-range { width: 100%; }
+  .ap-range .chip { flex: 1 1 0; justify-content: center; padding-inline: 8px; }
+  .ap-seg span { font-size: .74rem; }
+}
+@media screen and (max-width: 640px) {
+  .ap-sheets { padding: 14px 10px 40px; gap: 16px; }
+  .ap-sheet, .ap-sheet.a5 { padding: 18px 16px; font-size: 13px; }
+  .ap-sh-head { flex-direction: column; align-items: flex-start; }
+  .ap-sh-shop { text-align: left; }
+  .ap-sh-grid, .ap-sh-bottom { grid-template-columns: minmax(0, 1fr); }
+  .ap-sh-items th, .ap-sh-items td { padding: 6px 4px; }
+  .ap-inv-bar h1 { font-size: 1.3rem; flex-basis: 100%; order: -1; }
+}
+
+/* -------------------------------------------------------------- print: only the sheets */
+@media print {
+  body.ap-inv-mode { background: #fff !important; }
+  body.ap-inv-mode > *:not(#main), body.ap-inv-mode .ap-inv-bar { display: none !important; }
+  body.ap-inv-mode main { min-height: 0; }
+  body.ap-inv-mode .page-enter { animation: none; }
+  .ap-sheets { display: block; padding: 0; background: none; }
+  .ap-sheet, .ap-sheet.a5 { width: auto; min-height: 0; padding: 0; border-radius: 0; box-shadow: none; break-after: page; page-break-after: always; }
+  .ap-sheet:last-child { break-after: auto; page-break-after: auto; }
+  .ap-sh-items tr, .ap-sh-bottom, .ap-sh-thanks { break-inside: avoid; page-break-inside: avoid; }
+  .ap-collect.cod, .ap-collect.paid, .ap-sh-notes { background: none; }
+  .ap-sheet .status { border: 1px solid #000; background: none; color: #000; }
+}

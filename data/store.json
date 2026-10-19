@@ -228,5 +228,11 @@
   "analytics": {
     "metaPixelId": "",
     "ga4Id": ""
+  },
+  "festive": {
+    "name": "Eid ul-Fitr",
+    "urdu": "عید مبارک",
+    "date": "2027-03-10",
+    "note": "Date depends on moon sighting"
   }
 }

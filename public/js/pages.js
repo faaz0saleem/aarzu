@@ -680,6 +680,7 @@ function adminOrders(orders) {
         <div class="ao-actions">
           <a class="btn wa sm" href="${esc(wa(o, confirmMsg))}" target="_blank" rel="noopener">${icon("whatsapp", "", 14)} Confirm</a>
           <a class="btn ghost sm" href="${esc(wa(o, shipMsg))}" target="_blank" rel="noopener">${icon("truck", "", 14)} Dispatch msg</a>
+          <a class="btn ghost sm" href="/admin/invoice/${esc(o.id)}" target="_blank" rel="opener">${icon("list", "", 14)} Invoice</a>
           <select data-st="${esc(o.id)}" aria-label="Status">${["placed", "confirmed", "dispatched", "delivered", "cancelled", "returned"].map((x) => `<option ${x === o.status ? "selected" : ""}>${x}</option>`).join("")}</select>
           <span class="ao-ship"><select data-courier aria-label="Courier"><option value="">Courier…</option>${(s.couriers || []).map((c) => `<option ${c.name === o.courier ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select><input data-tracking placeholder="Tracking no." value="${esc(o.tracking || "")}"><button class="btn sm" data-ship="${esc(o.id)}">Save</button></span>
         </div>
