@@ -107,7 +107,9 @@ const normPhone = (p) => {
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || ""));
 
 // Real client IP; behind a reverse proxy (Caddy/nginx) set TRUST_PROXY=1.
-const clientIp = (req) => (process.env.TRUST_PROXY === "1" && String(req.headers["x-forwarded-for"] || "").split(",")[0].trim()) || req.socket.remoteAddress || "?";
+// A proxy on the same machine (Hostinger, Passenger, nginx) connects from loopback, so its header is trusted too.
+const LOOPBACK = /^(127\.|::1$|::ffff:127\.)/;
+const clientIp = (req) => ((process.env.TRUST_PROXY === "1" || LOOPBACK.test(req.socket.remoteAddress || "")) && String(req.headers["x-forwarded-for"] || "").split(",")[0].trim()) || req.socket.remoteAddress || "?";
 
 // Sliding-window limiter to stop order spam / fake-order floods.
 const hits = new Map();
