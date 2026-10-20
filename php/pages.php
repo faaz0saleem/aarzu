@@ -4,7 +4,8 @@ function az_unbranded(string $text,?string $brand): string {
     if(!$brand) return trim($text); $sentences=preg_split('/(?<=[.!?])\s+/u',$text)?:[]; return trim(implode(' ',array_filter($sentences,fn($s)=>stripos($s,$brand)===false)));
 }
 function az_page(string $path): never {
-    if($path==='/' && (defined('AZ_ADMIN_ENTRY') || (az_env('ADMIN_HOST') && strtolower(explode(':',$_SERVER['HTTP_HOST']??'')[0])===strtolower(az_env('ADMIN_HOST'))))) { header('Location: /admin',true,302); exit; }
+    $host=strtolower(explode(':',$_SERVER['HTTP_HOST']??'')[0]);
+    if(in_array($path,['/','/index.html'],true) && (defined('AZ_ADMIN_ENTRY') || $host==='admin.aarzu.store' || ($host!=='' && $host===strtolower(az_env('ADMIN_HOST'))))) { header('Location: /admin',true,302); exit; }
     if($path==='/robots.txt') az_text(200,"User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /checkout\nDisallow: /api/\nSitemap: ".az_origin()."/sitemap.xml\n");
     if(preg_match('~\.[^/]+$~',$path)&&!in_array($path,['/sitemap.xml','/index.html'])) az_text(404,'Not found');
     if(preg_match('~^/(?:data|php|lib|scripts|node_modules|public)(?:/|$)~',$path)) az_text(404,'Not found');

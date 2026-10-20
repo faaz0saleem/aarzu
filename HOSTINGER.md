@@ -12,12 +12,14 @@ This deployment uses PHP 8.2 or newer for the server. All existing HTML, CSS, Ja
    - `public_html/php/`
    - `public_html/public/`
    - `public_html/data/`
-4. Copy `.env.example` to `.env` in that same directory. Set `SITE_URL` to the real HTTPS storefront address and `ADMIN_PASSWORD` to a unique password of at least 10 characters. Never commit `.env` to GitHub. The admin API stays locked until a password is configured; the storefront can still load.
+4. Copy `.env.example` to `.env` in that same directory. Set `SITE_URL=https://aarzu.store`, `ADMIN_HOST=admin.aarzu.store` and `ADMIN_PASSWORD` to a unique password of at least 10 characters. Never commit `.env` to GitHub. The admin API stays locked until a password is configured; the storefront can still load.
 5. Open the storefront, a product, `/shop`, and `/admin`. Log in with the password from `.env`. A page refresh on `/shop` must still work. If an old welcome page appears, check `.htaccess` was uploaded and clear Hostinger's cache.
 
 There is no build, Composer install, database setup or `npm start` step on Hostinger. Upload the whole repository, rather than just `public/index.html`.
 
 ## Existing admin subdomain
+
+For `admin.aarzu.store`, choose one of these document roots in hPanel. Upload the current PHP files and both `.htaccess` files before testing. Updating GitHub alone does not change files already uploaded to Hostinger.
 
 Two layouts are supported; use the one that matches hPanel's document-root setting:
 
@@ -45,3 +47,5 @@ Email and Telegram use the same `.env` variables as the Node server (`SMTP_*`, `
 Before announcing the site, place a test order, check it appears in both admin addresses, confirm it, add courier tracking, and verify the customer's Track page. Test sign-up, gift-card activation/redemption, reward points, a coupon, stock editing, and the contact form. Email/Telegram delivery and the real domain/subdomain require verification on your hosting account.
 
 For local development, `php -S 127.0.0.1:8080 index.php` runs the PHP site. With Node and PHP installed, `npm run test:php` starts an isolated temporary store and checks API compatibility without touching live orders or sending notifications.
+
+The frontend regression checks run with `node tests/storefront-regressions.mjs`. They cover checkout confirmation, unavailable browser storage, wheel retry/validation, catalog exclusions and the Rs 1,000 price reduction; they do not replace live Hostinger testing.

@@ -1,6 +1,6 @@
 // Turns raw brand product data (from the scraper or a Cowork JSON export) into
 // Aarzu listings: Aarzu-style name, price = brand price − 1000, and a description
-// with the source brand mentioned once, in the middle sentence.
+// with source brands kept in private sourcing metadata.
 import crypto from "node:crypto";
 
 export const DISCOUNT = 1000;
@@ -42,6 +42,7 @@ export function transform(rows, { now = Date.now() } = {}) {
   const out = [];
   const warnings = [];
   rows.forEach((r, i) => {
+    if (/sanam[\s_-]*saeed/i.test(JSON.stringify(r)) || /^m(en|ale)?$/i.test(String(r.gender))) return warnings.push(`skipped #${i + 1}: excluded collection`);
     const price = Math.round(Number(String(r.price_pkr ?? r.price ?? "").replace(/[^\d.]/g, "")));
     const images = [].concat(r.images || []).filter((u) => /^https?:\/\//.test(u));
     if (!r.brand || !r.name || !price || !images.length) return warnings.push(`skipped #${i + 1} (${r.name || "no name"}): missing brand/name/price/images`);
@@ -63,11 +64,11 @@ export function transform(rows, { now = Date.now() } = {}) {
     const colors = String(r.color || "").split(/[\/,&]| and /i).map((c) => titleCase(c.trim())).filter(Boolean).slice(0, 3);
     const brand = String(r.brand).trim();
 
-    // Description: lead sentence, brand sentence in the middle, styling note.
+    // Description: fabric details and styling, with source brands kept private.
     const raw = scrub(stripHtml(r.description).split("\n").filter((l) => !/:\s/.test(l) || l.length > 90).join(" "), brand);
     const firstBits = raw.split(/(?<=[.!?])\s+/).filter((x) => x.length > 25).slice(0, 2).join(" ");
     const lead = /^[A-Z]/.test(firstBits) ? firstBits : `A ${colors[0] ? colors[0].toLowerCase() + " " : ""}${fabric.toLowerCase()} ${type === "unstitched" ? "unstitched " : ""}${gender === "men" ? "kameez shalwar" : `${pieces}-piece suit`}${deco ? ` with ${deco.toLowerCase()} detailing` : ""}.`;
-    const middle = `This piece comes from ${brand}'s ${r.collection ? scrub(r.collection, "") + " " : ""}collection and reaches you quality-checked by the Aarzu team.`;
+    const middle = "Quality-checked by the Aarzu team.";
     const close = type === "unstitched" ? "Take it to your darzi for a fit that's completely yours." : gender === "men" ? "Pair it with a waistcoat or a shawl for the evening." : "Finish it with a contrast dupatta from our Complete the Look edit.";
     const details = [].concat(r.details || []).map((d) => scrub(stripHtml(d), brand)).filter((d) => d.length > 3).slice(0, 8);
     const sizes = type === "unstitched" ? ["Unstitched"] : (r.sizes?.length ? r.sizes.map(String) : gender === "men" ? ["S", "M", "L", "XL"] : ["XS", "S", "M", "L", "XL"]);

@@ -99,6 +99,8 @@ function az_catalog(): array {
     $files=array_merge(['originals.json','catalog.brands.json'],array_map('basename',array_filter(glob(AZ_ROOT.'/data/catalog.*.json')?:[],fn($f)=>basename($f)!=='catalog.brands.json')));
     $all=[]; $inventory=az_db('inventory');
     foreach($files as $f) foreach(az_read(AZ_ROOT.'/data/'.$f) as $p) {
+        // Men's clothing is paused; excluded collections cannot be ordered either.
+        if(($p['gender']??'')==='men' || preg_match('/sanam[\\s_-]*saeed/i',json_encode($p,AZ_JSON))) continue;
         if(($p['collection']??'')==='originals') {
             $photos=[];
             foreach(glob(AZ_ROOT.'/public/images/originals/photos/*')?:[] as $photo) if(preg_match('/^'.preg_quote($p['slug'],'/').'(-(\d+))?\.(jpe?g|png|webp|avif)$/i',basename($photo),$m)) $photos[(int)($m[2]??1)]='/images/originals/photos/'.basename($photo);

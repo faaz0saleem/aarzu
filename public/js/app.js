@@ -29,7 +29,7 @@ function announce() {
 
 function header() {
   const pick = (f) => listed().find(f);
-  const wImg = pick((p) => p.gender === "women")?.images[0], mImg = pick((p) => p.gender === "men")?.images[0];
+  const wImg = pick((p) => p.gender === "women")?.images[0];
   const mega = (g, feat, label) => `<div class="mega"><div class="wrap">
       <div><h5>Unstitched</h5><ul><li><a href="/shop?gender=${g}&category=unstitched" data-link>All unstitched</a></li><li><a href="/shop?gender=${g}&category=unstitched&fabric=Lawn" data-link>Lawn</a></li><li><a href="/shop?gender=${g}&category=unstitched&fabric=Khaddar" data-link>Khaddar</a></li><li><a href="/shop?gender=${g}&pieces=3" data-link>3-Piece suits</a></li></ul></div>
       <div><h5>Ready to wear</h5><ul><li><a href="/shop?gender=${g}&category=ready-to-wear" data-link>All ready to wear</a></li><li><a href="/shop?gender=${g}&pieces=2" data-link>2-Piece sets</a></li><li><a href="/shop?gender=${g}&sort=new" data-link>New arrivals</a></li><li><a href="/shop?gender=${g}&sort=save" data-link>Best savings</a></li></ul></div>
@@ -42,7 +42,7 @@ function header() {
       <button class="icon-btn burger" id="burger" aria-label="Menu">${icon("menu")}</button>
       <nav class="nav" aria-label="Main">
         <div class="nav-item"><a href="/shop?gender=women" data-link data-nav="women">Women</a>${mega("women", wImg, "Shop all women")}</div>
-        <div class="nav-item"><a href="/shop?gender=men" data-link data-nav="men">Men</a>${mega("men", mImg, "Shop all men")}</div>
+        <div class="nav-item"><a href="/shop?gender=men" data-link data-nav="men">Men <span class="soon-pill">Soon</span></a></div>
         <div class="nav-item"><a href="/shop?collection=originals" data-link data-nav="originals">Originals</a></div>
         <div class="nav-item"><a href="/shop?category=accessory" data-link data-nav="accessory">Dupattas & Shawls</a></div>
         <div class="nav-item"><a href="/western" data-link data-nav="western">Western <span class="soon-pill">Soon</span></a></div>
@@ -84,7 +84,7 @@ function footer() {
   $("#footer").innerHTML = `<div class="wrap top">
       <div class="brand"><img class="footer-logo" src="/brand/aarzu-logo-dark.svg" alt="Aarzu آرزو" width="250" height="114"><p>Shalwar kameez with the soul of Pakistan: designer favourites for less, and our own Originals inspired by the crafts of every province.</p>
         <div class="socials">${["instagram", "facebook", "tiktok", "youtube"].map((k) => `<a href="${esc(s.social[k])}" target="_blank" rel="noopener" aria-label="${k}">${icon(k, "", 18)}</a>`).join("")}</div></div>
-      <div><h5>Shop</h5><ul><li><a href="/shop?gender=women" data-link>Women</a></li><li><a href="/shop?gender=men" data-link>Men</a></li><li><a href="/shop?collection=originals" data-link>Aarzu Originals</a></li><li><a href="/shop?category=accessory" data-link>Dupattas & Shawls</a></li><li><a href="/western" data-link>Western (coming soon)</a></li>${extLinks("shop")}</ul></div>
+      <div><h5>Shop</h5><ul><li><a href="/shop?gender=women" data-link>Women</a></li><li><a href="/shop?gender=men" data-link>Men (coming soon)</a></li><li><a href="/shop?collection=originals" data-link>Aarzu Originals</a></li><li><a href="/shop?category=accessory" data-link>Dupattas & Shawls</a></li><li><a href="/western" data-link>Western (coming soon)</a></li>${extLinks("shop")}</ul></div>
       <div><h5>Help</h5><ul><li><a href="/track" data-link>Track your order</a></li><li><a href="/shipping" data-link>Delivery & exchanges</a></li><li><a href="/size-guide" data-link>Size guide</a></li><li><a href="/faq" data-link>FAQs</a></li><li><a href="/contact" data-link>Contact us</a></li>${extLinks("help")}</ul></div>
       <div><h5>Aarzu</h5><ul><li><a href="/about" data-link>Our story</a></li><li><a href="/shop?sort=new" data-link>New arrivals</a></li><li><a href="/wishlist" data-link>Wishlist</a></li><li><button data-spin class="link">Spin the wheel</button></li>${extLinks("aarzu")}</ul></div>
       <div><h5>Talk to us</h5><ul><li>${icon("phone", "", 15)} ${esc(c.phone)}</li><li>${icon("mail", "", 15)} ${esc(c.email)}</li><li>${icon("map-pin", "", 15)} ${esc(c.address)}</li><li>${icon("clock", "", 15)} ${esc(c.hours)}</li></ul></div>
@@ -185,14 +185,16 @@ const typeLabel = (p) => (p.category === "accessory" ? p.accessoryType : p.categ
 function openMenu() {
   const el = openOverlay(`<div class="drawer-head"><a class="logo" href="/" data-link data-close><img class="logo-mark" src="/brand/aarzu-mark.svg" alt="" width="34" height="44"><span class="words"><span class="ur">آرزو</span><span class="en">AARZU</span></span></a><button class="icon-btn" data-close aria-label="Close">${icon("x")}</button></div>
     <div class="drawer-body"><nav style="display:grid;gap:4px;font-family:var(--serif);font-size:1.9rem">
-      ${[["Women", "/shop?gender=women"], ["Men", "/shop?gender=men"], ["Aarzu Originals", "/shop?collection=originals"], ["Dupattas & Shawls", "/shop?category=accessory"], ["New Arrivals", "/shop?sort=new"], ["Western · soon", "/western"], ["Wishlist", "/wishlist"], ["Track order", "/track"], ["Our story", "/about"], ["Contact", "/contact"], ...ext.links.filter((l) => l.where === "menu").map((l) => [l.label, l.href])].map(([l, h], i) => `<a href="${h}" data-link data-close data-reveal="left" style="--i:${i};padding:6px 0;border-bottom:1px solid var(--line)">${l}</a>`).join("")}
+      ${[["Women", "/shop?gender=women"], ["Men · coming soon", "/shop?gender=men"], ["Aarzu Originals", "/shop?collection=originals"], ["Dupattas & Shawls", "/shop?category=accessory"], ["New Arrivals", "/shop?sort=new"], ["Western · soon", "/western"], ["Wishlist", "/wishlist"], ["Track order", "/track"], ["Our story", "/about"], ["Contact", "/contact"], ...ext.links.filter((l) => l.where === "menu").map((l) => [l.label, l.href])].map(([l, h], i) => `<a href="${h}" data-link data-close data-reveal="left" style="--i:${i};padding:6px 0;border-bottom:1px solid var(--line)">${l}</a>`).join("")}
     </nav></div>`, { kind: "drawer left" });
   setTimeout(() => reveal(el), 50);
 }
 
 // ------------------------------------------------------------------ wheel
 export function openWheel() {
-  const w = state.store.wheel, n = w.length, R = 150;
+  const w = state.store?.wheel;
+  if (!Array.isArray(w) || w.length < 2 || w.some((p) => typeof p.label !== "string" || !Number.isFinite(p.weight) || p.weight <= 0)) { toast("The wheel is unavailable. Please try again shortly."); return; }
+  const n = w.length, R = 150;
   const total = w.reduce((s, x) => s + x.weight, 0);
   const slices = w.map((s, i) => {
     const a0 = (i / n) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2;
@@ -201,7 +203,7 @@ export function openWheel() {
     return `<path d="M150 150 L${p(a0)} A${R} ${R} 0 0 1 ${p(a1)} Z" fill="${s.color}" stroke="#fff" stroke-width="2"/>
       <text x="${150 + 92 * Math.cos(mid)}" y="${150 + 92 * Math.sin(mid)}" fill="#fff" font-family="Jost,sans-serif" font-weight="600" font-size="${s.label.length > 8 ? 11 : 15}" text-anchor="middle" dominant-baseline="middle" transform="rotate(${(mid * 180) / Math.PI + 90} ${150 + 92 * Math.cos(mid)} ${150 + 92 * Math.sin(mid)})">${esc(s.label)}</text>`;
   }).join("");
-  const done = (() => { try { return JSON.parse(localStorage.getItem("az_spun")); } catch { return null; } })();
+  const done = (() => { try { const p = JSON.parse(localStorage.getItem("az_spun")); return p && typeof p.code === "string" && w.some((s) => s.label === p.label) ? p : null; } catch { return null; } })();
   const el = openOverlay(`<div class="wheel-wrap"><div class="wheel-stage"><div class="wheel-pin"></div><div class="wheel" id="wheel"><svg viewBox="0 0 300 300">${slices}</svg></div><div class="wheel-hub">آرزو</div></div>
     <div class="wheel-side"><span class="eyebrow">Spin & win</span><h3>Every spin <em>wins</em> something</h3>
       <div id="wheel-ctl">${done ? prizeHtml(done) : `<p style="margin:0;color:var(--ink-2)">Spin once for a discount on your order. Add your email or number and we'll save your code for you.</p>
@@ -210,18 +212,22 @@ export function openWheel() {
   const f = $("#spin-f", el);
   if (f) f.onsubmit = async (e) => {
     e.preventDefault();
-    f.querySelector("button").disabled = true;
+    const button = f.querySelector("button");
+    if (button.disabled) return;
+    button.disabled = true;
     try {
-      const r = await api("/api/spin", { contact: f.contact.value });
+      const r = await api("/api/spin", { contact: f.elements.namedItem("contact").value });
+      if (!Number.isInteger(r.index) || r.index < 0 || r.index >= n || r.prize?.label !== w[r.index].label || typeof r.prize.code !== "string" || !r.prize.code) throw new Error("The wheel could not finish. Please try again.");
+      const prize = { label: r.prize.label, code: r.prize.code };
+      try { localStorage.setItem("az_spun", JSON.stringify(prize)); } catch {}
       const target = 360 * 6 + (360 - (r.index + 0.5) * (360 / n));
       $("#wheel", el).style.transform = `rotate(${target}deg)`;
       setTimeout(() => {
-        const prize = { label: r.prize.label, code: r.prize.code };
-        localStorage.setItem("az_spun", JSON.stringify(prize));
+        if (!el.isConnected) return;
         $("#wheel-ctl", el).innerHTML = prizeHtml(prize);
         confetti();
       }, 5400);
-    } catch (err) { toast(esc(err.message)); }
+    } catch (err) { button.disabled = false; toast(esc(err.message)); }
   };
 }
 function prizeHtml(p) {

@@ -1,5 +1,5 @@
 // Page renderers. Each takes (main, ctx) and may return a cleanup function.
-import { $, $$, esc, rs, img, icon, api, state, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, flyToCart, pushRecent, quote, clearCart, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish, ext, listed, lineExtras, fillSlots, setCredit } from "./core.js";
+import { $, $$, esc, rs, img, icon, api, state, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, flyToCart, pushRecent, quote, clearCart, setCoupon, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish, ext, listed, lineExtras, fillSlots, setCredit } from "./core.js";
 
 const P = () => listed();
 const withImg = (f = () => true) => P().filter((p) => p.images?.length && f(p));
@@ -55,7 +55,7 @@ async function home(main) {
         <span class="hero-chip fade-up" style="--delay:.1s"><b>New</b> The Aarzu launch season is here</span>
         <h1 class="split"><span class="l1">${splitWords("Pehno apni")}</span><span class="l2 grad-text fade-up" style="--delay:.45s">Aarzu.</span></h1>
         <p class="lede fade-up" style="--delay:.7s">Shalwar kameez with the soul of Pakistan. Designer favourites for less, and our own Originals inspired by ajrak, phulkari, truck art and Multani blue.</p>
-        <div class="hero-ctas fade-up" style="--delay:.85s"><a class="btn rani" href="/shop?gender=women" data-link>Shop Women ${icon("arrow-right", "", 16)}</a><a class="btn ghost-light" href="/shop?gender=men" data-link>Shop Men</a></div>
+        <div class="hero-ctas fade-up" style="--delay:.85s"><a class="btn rani" href="/shop?gender=women" data-link>Shop Women ${icon("arrow-right", "", 16)}</a><a class="btn ghost-light" href="/shop?gender=men" data-link>Men · Coming soon</a></div>
         <div class="hero-trust fade-up" style="--delay:1s"><span>${icon("banknote", "", 18)} Cash on delivery</span><span>${icon("truck", "", 18)} Free over ${rs(s.freeShippingThreshold)}</span><span>${icon("refresh-ccw", "", 18)} ${s.returnDays}-day exchange</span></div>
       </div>
       <div class="arches fade-up" style="--delay:.4s"><div class="medallion"></div>
@@ -72,13 +72,13 @@ async function home(main) {
     <div class="cats">${cats.map(([t, u, h, f, c1, c2], i) => {
       const im = catImg(f);
       const n = P().filter(f).length;
-      return `<a class="cat" href="${h}" data-link data-reveal style="--i:${i}"><div class="cat-img"><div class="in">${im ? `<img src="${esc(img(im))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ph" style="--c1:${c1};--c2:${c2}">${u}</div>`}</div></div><div><b>${t}</b><small>${u}</small></div><span class="count">${h === "/western" ? "Coming soon" : `${n} styles`}</span></a>`;
+      return `<a class="cat" href="${h}" data-link data-reveal style="--i:${i}"><div class="cat-img"><div class="in">${im ? `<img src="${esc(img(im))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ph" style="--c1:${c1};--c2:${c2}">${u}</div>`}</div></div><div><b>${t}</b><small>${u}</small></div><span class="count">${h === "/western" || h === "/shop?gender=men" ? "Coming soon" : `${n} styles`}</span></a>`;
     }).join("")}</div>
   </section>
 
   <section class="sec wrap" style="padding-top:0">
     <div class="sec-head-row" data-reveal><div><span class="eyebrow">Just landed</span><h2>New this <em class="grad-text" style="font-style:italic">season</em></h2></div>
-      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div class="tabs" id="new-tabs">${["All", "Women", "Men", "Originals"].map((t, i) => `<button class="${i ? "" : "on"}" data-t="${t}">${t}</button>`).join("")}</div><div class="rail-nav"><button data-r="-1" aria-label="Previous">${icon("chevron-left")}</button><button data-r="1" aria-label="Next">${icon("chevron-right")}</button></div></div></div>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div class="tabs" id="new-tabs">${["All", "Women", "Men", "Originals"].map((t, i) => `<button class="${i ? "" : "on"}" data-t="${t}" ${t === "Men" ? 'disabled title="Coming soon"' : ""}>${t === "Men" ? "Men · Coming soon" : t}</button>`).join("")}</div><div class="rail-nav"><button data-r="-1" aria-label="Previous">${icon("chevron-left")}</button><button data-r="1" aria-label="Next">${icon("chevron-right")}</button></div></div></div>
     <div class="rail" id="new-rail"></div>
   </section>
 
@@ -225,6 +225,10 @@ const FILTERS = ["gender", "category", "collection", "fabric", "pieces", "occasi
 function shop(main, { url, go, replace }) {
   if (!replace) filtersOpen = false;
   const q = Object.fromEntries(FILTERS.map((k) => [k, url.searchParams.get(k) || ""]));
+  if (q.gender.split(",").includes("men") && !q.gender.split(",").some((g) => g === "women" || g === "unisex")) {
+    main.innerHTML = `<section class="phero"><div class="crumbs"><a href="/" data-link>Home</a> / <span>Men</span></div><h1>Men</h1><div class="urdu">مرد</div></section><section class="wrap empty-state"><h3>Coming soon</h3><p>Our men's collection is on its way.</p><a class="btn rani" href="/shop?gender=women" data-link>Shop women</a></section>`;
+    return;
+  }
   const all = withImg();
   const title = q.q ? `“${esc(q.q)}”` : q.collection === "originals" ? "Aarzu Originals" : q.collection === "designer" ? "The Designer Edit" : q.category === "accessory" ? "Dupattas & Shawls" : q.occasion ? `${esc(q.occasion)} Edit` : q.gender === "women" ? "Women" : q.gender === "men" ? "Men" : "Shop All";
   const urdu = { Women: "خواتین", Men: "مرد", "Aarzu Originals": "آرزو اوریجنلز", "Dupattas & Shawls": "دوپٹے اور شالیں" }[title] || "آرزو";
@@ -457,11 +461,12 @@ function checkout(main, { go }) {
   const q0 = quote();
   if (!q0.items.length) { main.innerHTML = `<div class="wrap empty-state"><div class="ur">خالی</div><h3>Your bag is empty</h3><a class="btn rani" href="/shop" data-link>Shop now</a></div>`; return; }
   const saved = (() => { try { return JSON.parse(localStorage.getItem("az_cust")) || {}; } catch { return {}; } })();
+  const savedCity = saved.city || (() => { try { return localStorage.getItem("az_city"); } catch { return ""; } })();
   main.innerHTML = `<section class="wrap"><div class="steps" style="margin-top:30px"><span class="on"><b>1</b>Bag</span><i class="ln"></i><span class="on"><b>2</b>Details</span><i class="ln"></i><span><b>3</b>Done</span></div>
   <div class="checkout"><form id="co" novalidate>
     <div class="co-sec"><h3><span class="n">1</span>Contact</h3><div class="row2"><div class="field" data-k="name"><label>Full name</label><input name="name" autocomplete="name" value="${esc(saved.name || "")}"><span class="msg"></span></div><div class="field" data-k="phone"><label>Mobile number</label><input name="phone" inputmode="tel" autocomplete="tel" placeholder="03XX XXXXXXX" value="${esc(saved.phone || "")}"><span class="msg"></span></div></div>
       <div class="field" data-k="email"><label>Email (optional)</label><input name="email" type="email" autocomplete="email" value="${esc(saved.email || "")}"><span class="msg"></span></div></div>
-    <div class="co-sec"><h3><span class="n">2</span>Delivery</h3><div class="row2"><div class="field" data-k="city"><label>City</label><select name="city">${s.cities.map((c) => `<option ${c.name === (saved.city || localStorage.getItem("az_city")) ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select><span class="msg"></span></div><div class="field"><label>Arrives</label><input id="eta" disabled></div></div>
+    <div class="co-sec"><h3><span class="n">2</span>Delivery</h3><div class="row2"><div class="field" data-k="city"><label>City</label><select name="city">${s.cities.map((c) => `<option ${c.name === savedCity ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select><span class="msg"></span></div><div class="field"><label>Arrives</label><input id="eta" disabled></div></div>
       <div class="field" data-k="address"><label>Full address</label><textarea name="address" autocomplete="street-address" placeholder="House, street, area, landmark">${esc(saved.address || "")}</textarea><span class="msg"></span></div>
       <div class="field"><label>Order notes (optional)</label><input name="notes" placeholder="e.g. call before delivery"></div></div>
     <div data-slot="checkout-extras"></div>
@@ -496,24 +501,27 @@ function checkout(main, { go }) {
     note.hidden = !codWhy;
     note.textContent = codWhy ? `${codWhy} Please choose bank transfer or JazzCash/Easypaisa.` : "";
     $("#place", main).innerHTML = `${icon("lock", "", 16)} Place order · ${rs(q.total)}`;
-    $("#cpn", main).onsubmit = async (e) => { e.preventDefault(); const code = e.target.code.value.trim(); try { const c = code ? await api("/api/coupon", { code, phone: f.phone.value }) : null; (await import("./core.js")).setCoupon(c); sum(); if (c) toast("Code applied ✨"); } catch (err) { toast(esc(err.message)); } };
+    $("#cpn", main).onsubmit = async (e) => { e.preventDefault(); const code = e.target.code.value.trim(); try { const c = code ? await api("/api/coupon", { code, phone: f.elements.namedItem("phone").value }) : null; setCoupon(c); sum(); if (c) toast("Code applied ✨"); } catch (err) { toast(esc(err.message)); } };
   };
   sum();
-  const eta = () => ($("#eta", main).value = dispatchInfo(f.city.value).eta);
+  const eta = () => ($("#eta", main).value = dispatchInfo(f.elements.namedItem("city").value).eta);
   eta();
-  f.city.onchange = eta;
+  f.elements.namedItem("city").onchange = eta;
   f.onsubmit = async (e) => {
     e.preventDefault();
     $$(".field", f).forEach((x) => x.classList.remove("err"));
     const btn = $("#place", main);
+    if (btn.disabled) return;
     btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Placing order…`;
-    const customer = { name: f.name.value, phone: f.phone.value, email: f.email.value, city: f.city.value, address: f.address.value, notes: f.notes.value };
+    const customer = { name: f.elements.namedItem("name").value, phone: f.elements.namedItem("phone").value, email: f.elements.namedItem("email").value, city: f.elements.namedItem("city").value, address: f.elements.namedItem("address").value, notes: f.elements.namedItem("notes").value };
     try {
-      const r = await api("/api/orders", { customer, website: f.website.value, payment: f.payment.value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
-      localStorage.setItem("az_cust", JSON.stringify({ name: customer.name, phone: customer.phone, email: customer.email, city: customer.city, address: customer.address }));
-      sessionStorage.setItem("az_last", JSON.stringify({ ...r, quote: quote(), customer }));
+      const r = await api("/api/orders", { customer, website: f.elements.namedItem("website").value, payment: f.elements.namedItem("payment").value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
+      if (typeof r.id !== "string" || !/^AZ[A-Z0-9]+$/.test(r.id) || !Number.isFinite(r.total) || !["cod", "bank", "wallet"].includes(r.payment)) throw new Error("Your order was not confirmed. Please try again or contact us.");
+      state.lastOrder = { ...r, quote: quote(), customer };
+      try { localStorage.setItem("az_cust", JSON.stringify({ name: customer.name, phone: customer.phone, email: customer.email, city: customer.city, address: customer.address })); } catch {}
+      try { sessionStorage.setItem("az_last", JSON.stringify(state.lastOrder)); } catch {}
       clearCart();
-      (await import("./core.js")).setCoupon(null);
+      setCoupon(null);
       for (const c of state.credits) setCredit(c.key, null);
       go(`/order/${r.id}`);
     } catch (err) {
@@ -522,7 +530,7 @@ function checkout(main, { go }) {
         return toast(esc(err.data.errors.credit), { icon: "x", ms: 6000 });
       }
       if (err.data?.errors?.code) {
-        (await import("./core.js")).setCoupon(null);
+        setCoupon(null);
         btn.disabled = false; sum();
         return toast(`${esc(err.data.errors.code)} We've removed the code. Please check your new total.`, { icon: "x", ms: 6000 });
       }
@@ -539,7 +547,7 @@ function checkout(main, { go }) {
 }
 
 function success(main, { params }) {
-  const o = (() => { try { return JSON.parse(sessionStorage.getItem("az_last")); } catch { return null; } })();
+  const o = state.lastOrder?.id === params[0] ? state.lastOrder : (() => { try { return JSON.parse(sessionStorage.getItem("az_last")); } catch { return null; } })();
   const s = state.store;
   const mine = o && o.id === params[0];
   const details = mine && s.payments?.[o.payment]?.details;

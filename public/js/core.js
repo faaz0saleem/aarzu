@@ -17,7 +17,8 @@ export const sid = load("az_sid", null) || (() => { const s = Math.random().toSt
 
 export async function api(path, body, method) {
   const r = await fetch(path, { method: method || (body ? "POST" : "GET"), headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
-  const data = await r.json().catch(() => ({}));
+  const data = await r.json().catch(() => null);
+  if (!data || typeof data !== "object") throw Object.assign(new Error("The store could not complete this request. Please try again."), { status: r.status });
   if (!r.ok) throw Object.assign(new Error(data.error || "Something went wrong"), { data, status: r.status });
   return data;
 }
@@ -25,7 +26,7 @@ export async function api(path, body, method) {
 // ------------------------------------------------------------------ state
 const listeners = new Set();
 export const state = {
-  products: [], media: [], store: null, byId: {}, bySlug: {},
+  products: [], media: [], store: null, byId: {}, bySlug: {}, lastOrder: null,
   cart: load("az_cart", []), wish: load("az_wish", []), recent: load("az_recent", []), coupon: load("az_coupon", null),
   credits: load("az_credits", []),
 };
