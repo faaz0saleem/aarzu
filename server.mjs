@@ -320,6 +320,7 @@ async function api(req, res, url) {
   // ---------------------------------------------------------------- admin
   if (p.startsWith("/api/admin/")) {
     if (!adminOk(req)) return fail(req, res, 401, "Wrong password");
+    if (p === "/api/admin/catalog" && M === "GET") return json(req, res, 200, catalog.products.filter((product) => !product.unlisted).map((product) => ({ ...product, stock: catalog.stockOf(product) })));
     if (p === "/api/admin/summary") {
       const orders = db.get("orders", []);
       const live = orders.filter((o) => o.status !== "cancelled");

@@ -49,3 +49,11 @@ Before announcing the site, place a test order, check it appears in both admin a
 For local development, `php -S 127.0.0.1:8080 index.php` runs the PHP site. With Node and PHP installed, `npm run test:php` starts an isolated temporary store and checks API compatibility without touching live orders or sending notifications.
 
 The frontend regression checks run with `node tests/storefront-regressions.mjs`. They cover checkout confirmation, unavailable browser storage, wheel retry/validation, catalog exclusions and the Rs 1,000 price reduction; they do not replace live Hostinger testing.
+
+## Uploaded collection
+
+The supplied `shalwar_kameez_100.csv` replaces the previous clothing catalog. It imports 84 women's three-piece unstitched suits; 16 Sanam Saeed entries are excluded. The CSV's “New Name” is used for each listing. Selling price is exactly “Price (PKR)” minus Rs 1,000, with that CSV price as the displayed comparison price. Source brands are removed from descriptions; supplier details stay in authenticated admin inventory. The Men section remains Coming soon. Gift cards and existing runtime orders/accounts are retained.
+
+The CSV reports availability without quantities: 65 available styles start at one unit each, and 19 sold-out styles start at zero. Set actual quantities in Admin → Stock. Supplier SKUs, original names and links are available there under “From Azmat Brothers”, together with automatically calculated inventory values and markdowns. Original supplier prices are reference prices, not recorded purchase costs or profit.
+
+To repeat the import locally: `node scripts/import-azmat.mjs shalwar_kameez_100.csv`. Validate with `node tests/azmat-import.test.mjs` and `node tests/storefront-regressions.mjs`. The importer leaves private runtime files untouched. Product image URLs are retained from the CSV; this import does not edit or crop the source photos. Upload the updated repository files to the existing Hostinger installation, keeping its live `.env` and runtime data.

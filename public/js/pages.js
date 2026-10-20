@@ -642,13 +642,13 @@ function admin(main) {
   const dash = async (tab = "orders") => {
     const s = await call("/api/admin/summary");
     const extTab = ext.adminTabs.find((t) => t.key === tab);
-    const body = extTab ? null : tab === "orders" ? await call("/api/admin/orders") : tab === "stock" ? null : await call(`/api/admin/${tab}`);
+    const body = extTab ? null : tab === "orders" ? await call("/api/admin/orders") : tab === "stock" ? await call("/api/admin/catalog") : await call(`/api/admin/${tab}`);
     main.innerHTML = `<section class="wrap admin"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px"><h1 style="font-size:2.6rem">Dashboard</h1><button class="btn ghost sm" id="out">Sign out</button></div>
       <div class="kpis">${[["Revenue", rs(s.revenue)], ["Orders", s.orders], ["To process", s.pending], ["Waitlist (West)", s.waitlist], ["Subscribers", s.newsletter]].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
       <div class="tabs">${["orders", "stock", "waitlist", "newsletter", "leads", "messages"].map((t) => `<button data-tab="${t}" class="${t === tab ? "on" : ""}">${t}</button>`).join("")}${ext.adminTabs.map((t) => `<button data-tab="${esc(t.key)}" class="${t.key === tab ? "on" : ""}">${esc(t.label)}</button>`).join("")}</div>
       ${extTab ? `<div id="ext-tab"></div>` : ""}
       ${extTab ? "" : tab === "orders" ? adminOrders(body)
-      : tab === "stock" ? `<table><tr><th>Product</th><th>Stock by size</th></tr>${P().map((p) => `<tr><td><b>${esc(p.title)}</b><br><small>${esc(p.id)} · ${rs(p.price)}</small></td><td>${Object.entries(p.stock).map(([z, n]) => `<label style="margin-right:10px;white-space:nowrap">${esc(z)} <input type="number" min="0" value="${n}" style="width:64px" data-stock="${p.id}|${esc(z)}"></label>`).join("")}</td></tr>`).join("")}</table>`
+      : tab === "stock" ? adminStock(body)
       : `<table><tr><th>Contact / name</th><th>Details</th><th>Date</th></tr>${body.map((r) => `<tr><td>${esc(r.contact || r.name || "")}${r.email ? `<br><small>${esc(r.email)}</small>` : ""}</td><td>${esc(r.message || r.prize || r.interest || "")}</td><td>${new Date(r.at).toLocaleString("en-GB")}</td></tr>`).join("") || `<tr><td colspan="3">Nothing yet.</td></tr>`}</table>`}</section>`;
     if (extTab) try { await extTab.render($("#ext-tab", main), call); } catch (e) { $("#ext-tab", main).textContent = e.message; }
     main.onclick = async (e) => {
@@ -664,7 +664,7 @@ function admin(main) {
       const st = e.target.closest("[data-st]");
       if (st) { await call(`/api/admin/orders/${st.dataset.st}`, { status: st.value }, "PATCH"); toast(`Order ${esc(st.dataset.st)} → ${st.value}`); dash("orders"); }
       const sk = e.target.closest("[data-stock]");
-      if (sk) { const [id, size] = sk.dataset.stock.split("|"); await call("/api/admin/stock", { id, size, qty: Number(sk.value) }); state.byId[id].stock[size] = Number(sk.value); toast("Stock updated"); }
+      if (sk) { const [id, size] = sk.dataset.stock.split("|"); const saved = await call("/api/admin/stock", { id, size, qty: Number(sk.value) }); if (state.byId[id]) state.byId[id].stock = saved.stock; toast("Stock updated"); await dash("stock"); }
     };
   };
   pw ? dash().catch(login) : login();
@@ -672,6 +672,18 @@ function admin(main) {
 
 // Admin orders: risk flags from the phone's order history, one-tap WhatsApp
 // messages (confirm / dispatched), courier + tracking number, and statuses.
+function adminStock(products) {
+  const suppliers = [...new Set(products.map(p => p.source?.supplier).filter(Boolean))];
+  const units = p => Object.values(p.stock || {}).reduce((sum, n) => sum + Number(n), 0);
+  const quantity = products.reduce((sum, p) => sum + units(p), 0);
+  const retail = products.reduce((sum, p) => sum + units(p) * p.price, 0);
+  const original = products.reduce((sum, p) => sum + units(p) * (p.source?.price ?? p.compareAt ?? p.price), 0);
+  return `${suppliers.length ? `<h2>From ${suppliers.map(esc).join(" · ")}</h2>` : ""}
+    ${products.some(p => p.source?.stockFromAvailability) ? `<p>The CSV provides availability, without quantities. Available styles start at one unit. Set your actual stock below.</p>` : ""}
+    <div class="kpis">${[["Styles", products.length], ["Units in stock", quantity], ["Stock selling value", rs(retail)], ["Original list value", rs(original)], ["Total markdown", rs(original - retail)]].map(([label, value]) => `<div class="kpi"><b>${value}</b><span>${label}</span></div>`).join("")}</div>
+    <table><tr><th>Product</th><th>Prices</th><th>Stock by size</th></tr>${products.map(p => `<tr><td><b>${esc(p.title)}</b><br><small>${esc(p.id)}${p.source?.supplier ? ` · From ${esc(p.source.supplier)}` : ""}${p.source?.sku ? ` · SKU: ${esc(p.source.sku)}` : ""}</small>${p.source?.originalName ? `<br><small>${esc(p.source.originalName)}</small>` : ""}${p.source?.url ? `<br><a href="${esc(p.source.url)}" target="_blank" rel="noopener">Supplier product</a>` : ""}</td><td><b>${rs(p.price)}</b><br><small>Original: ${rs(p.source?.price ?? p.compareAt ?? p.price)}<br>Markdown: ${rs((p.source?.price ?? p.compareAt ?? p.price) - p.price)}</small></td><td>${Object.entries(p.stock).map(([size, qty]) => `<label style="margin-right:10px;white-space:nowrap">${esc(size)} <input type="number" min="0" step="1" value="${qty}" style="width:64px" data-stock="${esc(p.id)}|${esc(size)}"></label>`).join("")}</td></tr>`).join("")}</table>`;
+}
+
 function adminOrders(orders) {
   if (!orders.length) return `<div class="empty-state"><h3>No orders yet</h3><p>New orders appear here instantly.</p></div>`;
   const s = state.store;

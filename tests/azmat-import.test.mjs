@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { parseCsv, buildCatalog } from "../scripts/import-azmat.mjs";
+import { Catalog } from "../lib/catalog.mjs";
+
+const csv = readFileSync(new URL("../shalwar_kameez_100.csv", import.meta.url), "utf8");
+const rows = parseCsv(csv);
+const result = buildCatalog(rows);
+const saved = JSON.parse(readFileSync(new URL("../data/catalog.brands.json", import.meta.url), "utf8"));
+assert.equal(rows.length, 100);
+assert.equal(result.excluded.length, 16);
+assert.equal(result.products.length, 84);
+assert.deepEqual(saved, result.products);
+assert.deepEqual(parseCsv('\uFEFFNew Name,Source Product ID\r\n"One, ""two""\nthree",123\r\n'), [{ "New Name": 'One, "two"\nthree', "Source Product ID": "123" }]);
+assert.throws(() => parseCsv('New Name,Source Product ID\n"unfinished'), /Unclosed/);
+assert.throws(() => buildCatalog([rows[0], rows[0]]), /Duplicate/);
+assert.throws(() => buildCatalog([{ ...rows[0], "Price (PKR)": "500" }]), /Invalid product/);
+for (const product of saved) {
+  const row = rows.find(r => r["Source Product ID"] === product.source.productId);
+  assert.equal(product.title, row["New Name"]);
+  assert.equal(product.price, Number(row["Price (PKR)"]) - 1000);
+  assert.equal(product.compareAt, Number(row["Price (PKR)"]));
+  assert.equal(product.gender, "women");
+  assert.equal(product.category, "unstitched");
+  assert.equal(product.stock.Unstitched, row.Availability === "Available" ? 1 : 0);
+  assert.equal(product.images[0], row["Main Image URL"]);
+  assert.equal(product.images.length, new Set([row["Main Image URL"], ...row["All Image URLs"].split(" | ")]).size);
+  assert.equal(/sanam[\s_-]*saeed/i.test(JSON.stringify(product)), false);
+  assert.equal(/\b(celts|shaista|mahnur|tawakkal|omr[eé]|ayleen|azmat brothers)\b/i.test(product.description), false);
+  assert.equal(product.description.includes("If you would like"), false);
+  assert.equal(product.source.supplier, "Azmat Brothers");
+}
+assert.equal(saved.filter(p => p.stock.Unstitched === 1).length, 65);
+assert.equal(saved.filter(p => p.stock.Unstitched === 0).length, 19);
+assert.deepEqual(JSON.parse(readFileSync(new URL("../data/originals.json", import.meta.url), "utf8")), []);
+const catalog = Object.create(Catalog.prototype);
+catalog.products = saved;
+catalog.db = { get: (_key, fallback) => fallback };
+assert(catalog.publicList().every(p => !("source" in p) && !("supplier" in p)));
+assert.equal(catalog.publicList().length, 84);
+console.log("PASS 100-row CSV: 84 products, 16 exclusions, names, discounts, availability, photos, source privacy and old catalog removal");
