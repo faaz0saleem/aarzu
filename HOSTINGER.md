@@ -57,3 +57,11 @@ The supplied `shalwar_kameez_100.csv` replaces the previous clothing catalog. It
 The CSV reports availability without quantities: 65 available styles start at one unit each, and 19 sold-out styles start at zero. Set actual quantities in Admin → Stock. Supplier SKUs, original names and links are available there under “From Azmat Brothers”, together with automatically calculated inventory values and markdowns. Original supplier prices are reference prices, not recorded purchase costs or profit.
 
 To repeat the import locally: `node scripts/import-azmat.mjs shalwar_kameez_100.csv`. Validate with `node tests/azmat-import.test.mjs` and `node tests/storefront-regressions.mjs`. The importer leaves private runtime files untouched. Product image URLs are retained from the CSV; this import does not edit or crop the source photos. Upload the updated repository files to the existing Hostinger installation, keeping its live `.env` and runtime data.
+
+## Admin sign-in troubleshooting
+
+Set `ADMIN_PASSWORD` in the shared storefront root's `public_html/.env` (at least 10 characters). The optional `public_html/admin` entry point reads that same file. The application never commits the live password. If Hostinger has a separate application environment setting with the same name, keep that value consistent with the file.
+
+Admin requests support both the standard Authorization header and `X-Aarzu-Admin` for hosts that do not forward Authorization to PHP. Updating the backend and `public/js/core.js` / `public/js/pages.js` together is required. Sign-in shows the actual server error: a 503 indicates missing server configuration; an unavailable API indicates that the PHP files or subdomain document root need checking. Browser storage restrictions do not prevent sign-in. After uploading, refresh the admin page to load the updated JavaScript.
+
+Admin sign-in regression checks: `node tests/admin-login.test.mjs`.

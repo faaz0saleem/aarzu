@@ -153,10 +153,14 @@ function resolveCoupon(code, phone) {
 }
 
 function adminOk(req) {
-  const h = req.headers.authorization || "";
-  const given = Buffer.from(h.replace(/^Bearer\s+/i, ""));
   const want = Buffer.from(ADMIN_PASSWORD);
-  return given.length === want.length && crypto.timingSafeEqual(given, want);
+  const authorization = typeof req.headers.authorization === "string" ? req.headers.authorization.replace(/^Bearer\s+/i, "") : "";
+  const fallback = typeof req.headers["x-aarzu-admin"] === "string" ? req.headers["x-aarzu-admin"] : "";
+  return [authorization, fallback].some(token => {
+    if (!token) return false;
+    const given = Buffer.from(token);
+    return given.length === want.length && crypto.timingSafeEqual(given, want);
+  });
 }
 
 // Live viewers: real browser sessions currently on a product page.

@@ -633,11 +633,24 @@ function track(main, { url }) {
 }
 
 function admin(main) {
-  let pw = sessionStorage.getItem("az_admin") || "";
-  const call = (path, body, method) => fetch(path, { method: method || (body ? "POST" : "GET"), headers: { Authorization: `Bearer ${pw}`, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+  let pw = state.adminPassword || (() => { try { return sessionStorage.getItem("az_admin") || ""; } catch { return ""; } })();
+  const call = (path, body, method) => api(path, body, method, { Authorization: `Bearer ${pw}`, "X-Aarzu-Admin": pw });
   const login = () => {
     main.innerHTML = `<section class="wrap admin" style="max-width:440px"><form id="lf" class="card-box" style="display:grid;gap:14px;margin-top:60px"><h2>Aarzu Admin</h2><div class="field"><label>Password</label><input type="password" name="pw" autofocus></div><button class="btn rani">Sign in</button></form></section>`;
-    $("#lf", main).onsubmit = async (e) => { e.preventDefault(); pw = e.target.pw.value; try { await call("/api/admin/summary"); sessionStorage.setItem("az_admin", pw); dash(); } catch { toast("Wrong password"); } };
+    $("#lf", main).onsubmit = async (e) => {
+      e.preventDefault();
+      const form = e.currentTarget || e.target, button = form.querySelector("button");
+      if (button.disabled) return;
+      pw = form.elements.namedItem("pw").value;
+      button.disabled = true;
+      try {
+        await call("/api/admin/summary");
+        state.adminPassword = pw;
+        try { sessionStorage.setItem("az_admin", pw); } catch {}
+        await dash();
+      } catch (err) { toast(esc(err.message || "Could not sign in. Please try again."), { icon: "x", ms: 8000 }); }
+      finally { button.disabled = false; }
+    };
   };
   const dash = async (tab = "orders") => {
     const s = await call("/api/admin/summary");
@@ -659,7 +672,7 @@ function admin(main) {
         toast("Courier & tracking saved");
         return dash("orders");
       }
-      const t = e.target.closest("[data-tab]"); if (t) dash(t.dataset.tab); if (e.target.closest("#out")) { sessionStorage.removeItem("az_admin"); login(); } };
+      const t = e.target.closest("[data-tab]"); if (t) dash(t.dataset.tab); if (e.target.closest("#out")) { pw = ""; state.adminPassword = ""; try { sessionStorage.removeItem("az_admin"); } catch {} login(); } };
     main.onchange = async (e) => {
       const st = e.target.closest("[data-st]");
       if (st) { await call(`/api/admin/orders/${st.dataset.st}`, { status: st.value }, "PATCH"); toast(`Order ${esc(st.dataset.st)} → ${st.value}`); dash("orders"); }
@@ -667,7 +680,7 @@ function admin(main) {
       if (sk) { const [id, size] = sk.dataset.stock.split("|"); const saved = await call("/api/admin/stock", { id, size, qty: Number(sk.value) }); if (state.byId[id]) state.byId[id].stock = saved.stock; toast("Stock updated"); await dash("stock"); }
     };
   };
-  pw ? dash().catch(login) : login();
+  pw ? dash().catch((err) => { login(); if (err.status !== 401) toast(esc(err.message || "Could not open the admin."), { icon: "x", ms: 8000 }); }) : login();
 }
 
 // Admin orders: risk flags from the phone's order history, one-tap WhatsApp

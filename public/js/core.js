@@ -15,10 +15,10 @@ const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 export const sid = load("az_sid", null) || (() => { const s = Math.random().toString(36).slice(2) + Date.now().toString(36); save("az_sid", s); return s; })();
 
-export async function api(path, body, method) {
-  const r = await fetch(path, { method: method || (body ? "POST" : "GET"), headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
+export async function api(path, body, method, headers = {}) {
+  const r = await fetch(path, { method: method || (body ? "POST" : "GET"), headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined });
   const data = await r.json().catch(() => null);
-  if (!data || typeof data !== "object") throw Object.assign(new Error("The store could not complete this request. Please try again."), { status: r.status });
+  if (!data || typeof data !== "object") throw Object.assign(new Error(path.startsWith("/api/admin/") ? "The admin API is unavailable. Check that the PHP site files are installed for this domain." : "The store could not complete this request. Please try again."), { status: r.status });
   if (!r.ok) throw Object.assign(new Error(data.error || "Something went wrong"), { data, status: r.status });
   return data;
 }

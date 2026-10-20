@@ -5,7 +5,7 @@
 //   admin "Exports"    orders.csv, courier booking sheet, packing slips for confirmed orders
 //   /admin/invoice/<id>         printable invoice / packing slip (A4 or A5)
 //   /admin/invoice/confirmed    one slip per confirmed order, ready to print in one go
-import { $, $$, esc, rs, icon, state, toast, registerRoute, registerAdminTab } from "../core.js";
+import { $, $$, esc, rs, icon, api, state, toast, registerRoute, registerAdminTab } from "../core.js";
 
 // A few extra line icons (lucide, ISC licence) that the shared icon set doesn't have
 const PATHS = {
@@ -22,13 +22,10 @@ const STATUSES = ["placed", "confirmed", "dispatched", "delivered", "cancelled",
 const PKT = "Asia/Karachi";
 
 const remember = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch {} return null; };
-const pw = () => { try { return sessionStorage.getItem("az_admin") || ""; } catch { return ""; } };
-const authFetch = (path, opts = {}) => fetch(path, { ...opts, headers: { Authorization: `Bearer ${pw()}`, ...(opts.headers || {}) } });
+const pw = () => { if (state.adminPassword) return state.adminPassword; try { return sessionStorage.getItem("az_admin") || ""; } catch { return ""; } };
+const authFetch = (path, opts = {}) => fetch(path, { ...opts, headers: { Authorization: `Bearer ${pw()}`, "X-Aarzu-Admin": pw(), ...(opts.headers || {}) } });
 async function send(path, body, method) {
-  const r = await authFetch(path, { method: method || (body ? "POST" : "GET"), headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(data.error || "Something went wrong"), { data, status: r.status });
-  return data;
+  return api(path, body, method, { Authorization: `Bearer ${pw()}`, "X-Aarzu-Admin": pw() });
 }
 
 const pct = (n) => (n == null ? "–" : `${n}%`);
@@ -468,10 +465,17 @@ function invoicePage(view, { params }) {
       <button class="btn rani">Sign in</button><a class="link under" href="/admin" data-link>Go to the admin dashboard</a></form></section>`;
     $("#ap-lf", view).onsubmit = async (e) => {
       e.preventDefault();
-      const r = await fetch("/api/admin/summary", { headers: { Authorization: `Bearer ${e.target.pw.value}` } }).catch(() => null);
-      if (!r?.ok) { toast("Wrong password", { icon: "x" }); return; }
-      try { sessionStorage.setItem("az_admin", e.target.pw.value); } catch {}
-      show();
+      const form = e.currentTarget || e.target, button = form.querySelector("button");
+      if (button.disabled) return;
+      const password = form.elements.namedItem("pw").value;
+      button.disabled = true;
+      try {
+        await api("/api/admin/summary", undefined, undefined, { Authorization: `Bearer ${password}`, "X-Aarzu-Admin": password });
+        state.adminPassword = password;
+        try { sessionStorage.setItem("az_admin", password); } catch {}
+        await show();
+      } catch (err) { toast(esc(err.message || "Could not sign in."), { icon: "x", ms: 8000 }); }
+      finally { button.disabled = false; }
     };
   };
 

@@ -90,8 +90,16 @@ function az_limited(string $key,int $max,int $seconds): bool {
 function az_admin(): void {
     $pw=az_env('ADMIN_PASSWORD');
     if(strlen($pw)<10 || $pw==='aarzu-admin') az_fail(503,'Set a strong ADMIN_PASSWORD (10+ characters) in .env before opening the admin dashboard.');
-    $given=preg_replace('/^Bearer\s+/i','',$_SERVER['HTTP_AUTHORIZATION']??$_SERVER['REDIRECT_HTTP_AUTHORIZATION']??'');
-    if(!hash_equals($pw,$given)) az_fail(401,'Wrong password');
+    // FastCGI/LiteSpeed may forward Authorization under a redirect key.
+    $auth=[]; foreach(['HTTP_AUTHORIZATION','REDIRECT_HTTP_AUTHORIZATION','REDIRECT_REDIRECT_HTTP_AUTHORIZATION'] as $key) if(!empty($_SERVER[$key])) $auth[]=(string)$_SERVER[$key];
+    $tokens=[]; if(!empty($_SERVER['HTTP_X_AARZU_ADMIN'])) $tokens[]=(string)$_SERVER['HTTP_X_AARZU_ADMIN'];
+    if(function_exists('getallheaders')) foreach(getallheaders() as $name=>$value) {
+        if(strtolower($name)==='authorization') $auth[]=(string)$value;
+        if(strtolower($name)==='x-aarzu-admin') $tokens[]=(string)$value;
+    }
+    foreach($auth as $header) $tokens[]=preg_replace('/^Bearer\s+/i','',$header);
+    foreach($tokens as $given) if($given!=='' && hash_equals($pw,$given)) return;
+    az_fail(401,'Wrong password');
 }
 function az_store(): array { return az_read(AZ_ROOT.'/data/store.json'); }
 function az_origin(): string { $configured=rtrim(az_env('SITE_URL'),'/'); if($configured) return $configured; $host=$_SERVER['HTTP_HOST']??'localhost'; if(!preg_match('/^[a-zA-Z0-9.\-:\[\]]+$/',$host)) $host='localhost'; return ((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http').'://'.$host; }
