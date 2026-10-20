@@ -1,0 +1,6 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^index\.php$ - [L]
+RewriteRule ^ index.php [L,QSA]

@@ -42,7 +42,9 @@ Oracle can stop free machines it sees as idle. Upgrading the account to "Pay As 
 5. In `.env` set `TRUST_PROXY=1` and `SITE_URL=https://YOUR_DOMAIN`, then restart the shop. Without `TRUST_PROXY=1`, all shoppers look like one visitor and the spam limits block real orders.
 6. Copy `data/backups/` to a USB drive or Google Drive now and then. If the computer dies, the data goes with it.
 
-**Option Hostinger.** Aarzu runs on Hostinger without changes. It needs Node.js, which basic "Single" web hosting doesn't have.
+**Option Hostinger Single / Premium (PHP).** Use the included PHP backend with the original frontend. Follow [HOSTINGER.md](HOSTINGER.md): upload the repository contents, including `.htaccess`, directly into `public_html/`, then set `.env`. An optional `admin/` entry point shares the same orders and stock for an admin subdomain. No Node process is needed, and no storefront features are disabled.
+
+**Option Hostinger Business / Cloud / VPS (Node.js).** The original server can still be deployed as follows:
 - **Business or Cloud web hosting (Node.js Web App):**
   1. In hPanel go to **Websites → Add website → Node.js app**.
   2. Connect GitHub (repo `aarzu`, branch `claude/modest-wright-6wemmy`) or upload the project zip.

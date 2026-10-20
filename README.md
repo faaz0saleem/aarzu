@@ -2,7 +2,13 @@
 
 Shalwar kameez storefront for women and men: a Designer Edit of big-brand suits priced Rs 1,000 under retail, plus our own **Aarzu Originals** inspired by the crafts of Pakistan. Western wear is shown as *coming soon* with a waitlist.
 
-## Run it
+## Hostinger Single / Premium — same site and features, using PHP
+
+Upload the repository contents to `public_html/`, including `.htaccess`, `index.php`, `php/`, `public/` and `data/`. PHP 8.2+ runs the server API, so no Node.js process or build step is needed on the host. Copy `.env.example` to `.env`, set your domain and a strong admin password, and follow [HOSTINGER.md](HOSTINGER.md) for the storefront and optional admin subdomain.
+
+The PHP backend uses the **unchanged original frontend** and implements checkout, live stock, admin, accounts/rewards, gift cards, coupons, reviews, alerts, reporting, CSV exports and notifications. Orders and accounts persist as private JSON files. The original Node server remains available below.
+
+## Run it locally with Node
 
 ```bash
 npm start            # http://localhost:3000  (Node 20+, no dependencies)

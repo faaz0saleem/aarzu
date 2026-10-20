@@ -9,6 +9,7 @@
   },
   "main": "server.js",
   "scripts": {
+    "test:php": "node tests/php-smoke.mjs",
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
     "generate": "node scripts/generate-originals.mjs",
