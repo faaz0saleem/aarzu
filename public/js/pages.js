@@ -149,7 +149,13 @@ async function home(main) {
   };
   fill("All");
   $("#new-tabs", main).onclick = (e) => { const b = e.target.closest("button"); if (!b) return; $$("#new-tabs button", main).forEach((x) => x.classList.toggle("on", x === b)); fill(b.dataset.t); };
-  $$(".rail-nav button", main).forEach((b) => (b.onclick = () => rail.scrollBy({ left: rail.clientWidth * 0.8 * Number(b.dataset.r), behavior: "smooth" })));
+  // Scroll by whole cards so the smooth scroll ends on a snap point (otherwise snapping moves the rail a second time).
+  $$(".rail-nav button", main).forEach((b) => (b.onclick = () => {
+    const c = rail.firstElementChild;
+    if (!c) return;
+    const gap = parseFloat(getComputedStyle(rail).columnGap) || 0, w = c.getBoundingClientRect().width + gap;
+    rail.scrollBy({ left: w * Math.max(1, Math.floor((rail.clientWidth + gap) / w)) * Number(b.dataset.r), behavior: "smooth" });
+  }));
 
   // journey
   const jr = $("#journey", main);
