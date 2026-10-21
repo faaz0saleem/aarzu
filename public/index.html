@@ -18,12 +18,22 @@
   <link rel="preload" href="/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/jost-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="modulepreload" href="/js/app.js">
+  <link rel="modulepreload" href="/js/core.js">
+  <link rel="modulepreload" href="/js/pages.js">
+  <link rel="modulepreload" href="/js/icons.js">
+  <link rel="modulepreload" href="/js/pricing.js">
+  <link rel="modulepreload" href="/js/seo.js">
+  <link rel="modulepreload" href="/js/features/index.js">
 </head>
 <body>
   <div class="progress" id="progress"></div>
   <div id="announce"></div>
   <header id="header"></header>
-  <main id="main" tabindex="-1"></main>
+  <main id="main" tabindex="-1"><div role="status" style="min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px;text-align:center">
+    <img src="/brand/aarzu-logo-dark.svg" width="200" height="91" alt="Aarzu">
+    <p>Opening Aarzu…</p><a href="" style="color:#a51c56;text-decoration:underline">Taking longer? Reload the page</a>
+  </div></main>
   <footer id="footer"></footer>
   <div id="overlays"></div>
   <div class="toasts" id="toasts" aria-live="polite"></div>

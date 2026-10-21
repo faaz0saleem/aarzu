@@ -337,7 +337,7 @@ async function loadFeatures() {
 
 (async function start() {
   setNavigate((href) => go(href));
-  try { await boot(); await loadFeatures(); } catch (e) { $("#main").innerHTML = `<div class="empty-state"><h3>Couldn't reach the store</h3><p>${esc(e.message)}</p></div>`; return; }
+  try { await boot(); await loadFeatures(); } catch (e) { $("#main").innerHTML = `<div class="empty-state"><h3>Couldn't reach the store</h3><p>${esc(e.message)}</p><a class="btn rani" href="${esc(location.pathname + location.search)}">Try again</a></div>`; return; }
   announce(); header(); footer(); fab();
   on(() => counts());
   cardActions(document.body);
