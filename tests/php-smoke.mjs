@@ -67,11 +67,11 @@ try {
   const home=(await request('/')).text;
   assert(home.includes("Aarzu | Women&#039;s Shalwar Kameez &amp; Unstitched Suits"));
   assert(home.includes('"@type":"OnlineStore"'));
-  const robots=(await request('/robots.txt')).text;
+  const robotsResponse=await request('/robots.txt'); assert.equal(robotsResponse.headers['cache-control'][0],'no-cache'); const robots=robotsResponse.text;
   assert(robots.includes('Allow: /api/catalog$'));
   assert(robots.includes('Disallow: /api/'));
   assert.equal((await request('/robots.txt',null,{host:'admin.aarzu.test'})).text,'User-agent: *\nDisallow: /\n');
-  const xml=(await request('/sitemap.xml')).text;
+  const sitemapResponse=await request('/sitemap.xml'); assert.equal(sitemapResponse.headers['cache-control'][0],'no-cache'); const xml=sitemapResponse.text;
   assert([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].every(m=>!m[1].includes('?'))); assert(!xml.includes('/western')); assert(!xml.includes('/admin'));
   assert(xml.includes('/fabric-guide'));
   await request('/product/no-such-aarzu-product',null,{expected:404});

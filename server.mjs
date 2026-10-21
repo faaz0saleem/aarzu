@@ -447,8 +447,8 @@ function sitemap() {
 }
 
 function serveStatic(req, res, url) {
-  if (url.pathname === "/robots.txt") return send(req, res, 200, robotsText(originOf(), adminHost(req)), MIME[".txt"]);
-  if (url.pathname === "/sitemap.xml") return adminHost(req) ? send(req, res, 404, "Not found", MIME[".txt"]) : send(req, res, 200, sitemap(), "application/xml; charset=utf-8");
+  if (url.pathname === "/robots.txt") return send(req, res, 200, robotsText(originOf(), adminHost(req)), MIME[".txt"], { "Cache-Control": "no-cache" });
+  if (url.pathname === "/sitemap.xml") return adminHost(req) ? send(req, res, 404, "Not found", MIME[".txt"], { "Cache-Control": "no-cache" }) : send(req, res, 200, sitemap(), "application/xml; charset=utf-8", { "Cache-Control": "no-cache" });
   if (adminHost(req) && ["/", "/index.html"].includes(url.pathname)) return send(req, res, 302, "", MIME[".txt"], { Location: "/admin", "X-Robots-Tag": "noindex" });
   const clean = seoPath(url.pathname);
   if (clean !== url.pathname) return send(req, res, 301, "", MIME[".txt"], { Location: clean + url.search });

@@ -66,6 +66,7 @@ function az_seo_graph(array $meta,array $config,array $store): array {
 }
 function az_page(string $path): never {
     $config=az_seo_config(); $origin=$config['siteUrl']; $admin=az_seo_admin();
+    header('Cache-Control: no-cache');
     if($admin) header('X-Robots-Tag: noindex, nofollow');
     if(in_array($path,['/','/index.html'],true) && $admin) { header('Location: /admin',true,302); exit; }
     if($path==='/robots.txt') az_text(200,$admin?"User-agent: *\nDisallow: /\n":"User-agent: *\nAllow: /\nAllow: /api/catalog$\nDisallow: /api/\nDisallow: /data/\nDisallow: /php/\nDisallow: /lib/\nDisallow: /scripts/\nDisallow: /node_modules/\nSitemap: ".$origin."/sitemap.xml\n");
@@ -94,6 +95,6 @@ function az_page(string $path): never {
     $html=preg_replace_callback('~<meta name="description" content="[^"]*">~',fn()=>'<meta name="description" content="'.az_h($meta['description']).'">',$html);
     $html=str_replace('</head>',$tags."\n</head>",$html);
     if($meta['noindex']) header('X-Robots-Tag: noindex, follow');
-    header('Cache-Control: no-cache'); header('X-Frame-Options: SAMEORIGIN'); header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('X-Frame-Options: SAMEORIGIN'); header('Referrer-Policy: strict-origin-when-cross-origin');
     az_text($meta['status'],$html,'text/html; charset=utf-8');
 }

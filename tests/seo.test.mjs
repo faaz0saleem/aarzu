@@ -58,9 +58,9 @@ try {
   for (const p of ["/index.html", "/shop/"]) assert.equal((await get(p)).status, 301);
   assert.equal((await get("/checkout")).headers.get("x-robots-tag"), "noindex, follow");
   assert.equal((await get("/api/catalog")).headers.get("x-robots-tag"), "noindex");
-  r = await get("/robots.txt"); assert((await r.text()).includes("Allow: /api/catalog$"));
+  r = await get("/robots.txt"); assert.equal(r.headers.get("cache-control"), "no-cache"); assert((await r.text()).includes("Allow: /api/catalog$"));
   r = await get("/robots.txt", "admin.aarzu.test"); assert.equal(await r.text(), "User-agent: *\nDisallow: /\n");
-  r = await get("/sitemap.xml"); const xml = await r.text();
+  r = await get("/sitemap.xml"); assert.equal(r.headers.get("cache-control"), "no-cache"); const xml = await r.text();
   assert([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].every(m=>!m[1].includes("?"))); assert(xml.includes(`/product/${product.slug}`));
   assert.equal(error, "");
   console.log("PASS Node SEO HTTP responses, brand/product schema, canonical URLs, crawler resources, private pages, sitemap and real 404s");
