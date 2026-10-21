@@ -8,12 +8,13 @@
 .op-shell header p { color: var(--ink-2); font-size: .9rem; }
 .op-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .op-visual { position: relative; min-width: 0; border-radius: 19px; background: #eee5de; overflow: hidden; min-height: 320px; }
-.op-visual > canvas { display: block; width: 100%; height: auto; max-height: 65vh; object-fit: contain; touch-action: none; cursor: grab; }
+.op-visual > canvas { position: relative; z-index: 1; display: block; width: 100%; height: auto; max-height: 65vh; object-fit: contain; touch-action: none; cursor: grab; }
+.op-camera-source { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: .001; pointer-events: none; }
 .op-visual > canvas:active { cursor: grabbing; }
-.op-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; padding: 20px; color: #7c5b63; text-align: center; pointer-events: none; }
+.op-placeholder { position: absolute; z-index: 2; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; padding: 20px; color: #7c5b63; text-align: center; pointer-events: none; }
 .op-placeholder strong { font-family: var(--serif); font-size: 1.5rem; }
 .op-placeholder span { font-size: .8rem; line-height: 1.7; }
-.op-private { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: #ffffffed; padding: 7px 10px; border-radius: 99px; color: #4b3b40; font-size: .65rem; pointer-events: none; }
+.op-private { position: absolute; z-index: 3; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: #ffffffed; padding: 7px 10px; border-radius: 99px; color: #4b3b40; font-size: .65rem; pointer-events: none; }
 .op-controls { display: grid; gap: 13px; min-width: 0; }
 .op-note { font-size: .8rem; line-height: 1.65; color: var(--ink-2); margin: 0; }
 .op-note b { color: var(--ink); display: block; }
@@ -32,7 +33,7 @@
 .op-source-label select { border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 8px 12px; color: var(--ink); font: inherit; max-width: 65%; }
 .op-privacy { color: var(--muted); font-size: .7rem; line-height: 1.7; margin: 0; }
 .op-clip video { width: 100%; max-height: 240px; margin-bottom: 10px; border-radius: 12px; background: #1c1520; }
-.op-placeholder[hidden], .op-camera-buttons[hidden], .op-buttons [hidden], .op-clip[hidden], .op-camera-source[hidden] { display: none !important; }
+.op-placeholder[hidden], .op-camera-buttons[hidden], .op-buttons [hidden], .op-clip[hidden] { display: none !important; }
 .op-shell :focus-visible { outline: 2px solid var(--rani); outline-offset: 4px; }
 @media (max-width: 650px) {
   .op-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }

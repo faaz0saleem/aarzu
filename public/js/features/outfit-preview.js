@@ -52,7 +52,7 @@ function openPreview(product, opener) {
     <header><span class="eyebrow">Your private dressing mirror</span><h2>Try the <em>look.</em></h2><p>${esc(product.title)}</p></header>
     <div class="op-grid"><div class="op-visual"><canvas width="640" height="800" aria-label="Your outfit styling preview"></canvas>
       <div class="op-placeholder">${icon('camera', '', 38)}<strong>Your look starts here</strong><span>Choose a photo or start your camera.<br>Face forward with your shoulders visible.</span></div>
-      <span class="op-private">${icon('lock', '', 13)} Stays on your device</span><video class="op-camera-source" autoplay muted playsinline hidden></video></div>
+      <span class="op-private">${icon('lock', '', 13)} Stays on your device</span><video class="op-camera-source" autoplay muted playsinline aria-hidden="true"></video></div>
     <div class="op-controls"><p class="op-note"><b>A styling preview, made for you.</b> This places the outfit from its product photo over your image. It is approximate: fit, drape and stitching can look different in person.</p>
       <p class="op-status" role="status" aria-live="polite">Preparing the dress… The first visit may take a moment.</p>
       <div class="op-buttons"><button type="button" class="btn rani sm" data-camera disabled>${icon('camera', '', 16)} Start camera</button>
@@ -178,7 +178,7 @@ function openPreview(product, opener) {
   for (const input of root.querySelectorAll('[data-control]')) input.oninput = () => { controls[input.dataset.control] = Number(input.value); paint(); };
   $('[data-reset]').onclick = () => { Object.assign(controls, { x: 0, y: 0, scale: 1, angle: 0 }); for (const input of root.querySelectorAll('[data-control]')) input.value = String(controls[input.dataset.control]); paint(); };
   canvas.onpointerdown = e => { if (!background) return; canvas.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, ox: controls.x, oy: controls.y }; };
-  canvas.onpointermove = e => { if (!drag) return; const r = canvas.getBoundingClientRect(), sign = mode === 'camera' && facing === 'user' ? -1 : 1; controls.x = drag.ox + (e.clientX - drag.x) * canvas.width / r.width * sign; controls.y = clamp(drag.oy + (e.clientY - drag.y) * canvas.height / r.height, -300, 300); $('[data-control=y]').value = controls.y; paint(); };
+  canvas.onpointermove = e => { if (!drag) return; const r = canvas.getBoundingClientRect(), displayScale = Math.min(r.width / canvas.width, r.height / canvas.height), sign = mode === 'camera' && facing === 'user' ? -1 : 1; controls.x = drag.ox + (e.clientX - drag.x) / displayScale * sign; controls.y = clamp(drag.oy + (e.clientY - drag.y) / displayScale, -300, 300); $('[data-control=y]').value = controls.y; paint(); };
   canvas.onpointerup = canvas.onpointercancel = () => { drag = null; };
   $('[data-save]').onclick = () => {
     if (!background || disposed) return;
