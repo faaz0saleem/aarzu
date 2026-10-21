@@ -67,3 +67,7 @@ A valid `ADMIN_PASSWORD` in the shared root's `public_html/.env` or hosting envi
 Admin requests support both the standard Authorization header and `X-Aarzu-Admin` for hosts that do not forward Authorization to PHP. Updating the backend and `public/js/core.js` / `public/js/pages.js` together is required. Sign-in shows the actual server error: a 503 indicates missing server configuration; an unavailable API indicates that the PHP files or subdomain document root need checking. Browser storage restrictions do not prevent sign-in. After uploading, refresh the admin page to load the updated JavaScript.
 
 Admin sign-in regression checks: `node tests/admin-login.test.mjs`, `node tests/admin-password-config.test.mjs` and `node tests/php-admin-password.test.mjs` (PHP 8.2+). Tests use isolated fixture credentials and temporary data, never the live store.
+
+## Product cards and bag quantities
+
+Quick-add controls are positioned relative to the photo, with a separate row on touch devices and narrow screens. They remain accessible without a mouse and do not cover product titles or prices. Source photos are unchanged. Bag updates check available stock across all add-on variants of a size, so repeatedly adding a one-unit style cannot create an invalid two-unit checkout. Product-page quantities also respect stock; rejected adds do not show success or redirect to checkout. Validate with `node tests/cart-stock.test.mjs`.

@@ -281,7 +281,7 @@ function page(view, { url, params }) {
     for (const [k, m] of Object.entries(errors)) { const fd = $(`[data-k="${k}"]`, f); fd.classList.add("err"); $(".msg", fd).textContent = m; }
     if (Object.keys(errors).length) { $(".field.err input, .field.err textarea", f)?.focus(); return; }
 
-    addToCart(sel.id, sel.sizes[0], 1, { meta: { digital: true, to, toContact, from, message, summary: `For ${to} · from ${from}` } });
+    if (!addToCart(sel.id, sel.sizes[0], 1, { meta: { digital: true, to, toContact, from, message, summary: `For ${to} · from ${from}` } })) return;
     if (back) turn(false);
     flyToCart($("#gc-front-img", view));
     toast(`<b>${esc(rs(sel.price))} gift card</b> for ${esc(to)} is in your bag`, { icon: "gift", action: "View bag", actionData: "open-cart", href: "#" });

@@ -197,7 +197,7 @@ function openQuickView(p, opener) {
       if (o.addons) extra.addons.push(...o.addons);
       if (o.meta) extra.meta = { ...(extra.meta || {}), ...o.meta };
     }
-    addToCart(p.id, size, qty, extra);
+    if (!addToCart(p.id, size, qty, extra)) return;
     const im = $$(".qv-slide img", el)[active];
     if (im?.naturalWidth) flyToCart(im); else bump();
     toast(`<b>${esc(p.title)}</b> added to your bag`, { img: p.images[0], action: "View bag", actionData: "open-cart", href: "#" });
@@ -215,7 +215,7 @@ function openQuickView(p, opener) {
     $("span", b).textContent = onNow ? "In your wishlist" : "Save to wishlist";
     pop(b);
     // keep the heart on the card behind the modal in sync
-    $$(`.wish[data-wish="${CSS.escape(p.id)}"]`).forEach((h) => h.classList.toggle("on", onNow));
+    $$(`.wish[data-wish="${CSS.escape(p.id)}"]`).forEach((h) => { h.classList.toggle("on", onNow); h.setAttribute("aria-pressed", String(onNow)); h.setAttribute("aria-label", `${onNow ? "Remove from" : "Add to"} wishlist`); });
     toast(onNow ? "Saved to your wishlist" : "Removed from wishlist", { icon: "heart", action: onNow ? "View" : null, href: "/wishlist" });
   };
 

@@ -152,7 +152,7 @@ function renderCart(el) {
     const b = e.target.closest("[data-q]");
     if (b) { const [n, qty] = b.dataset.q.split("|"); setQty(q.items[Number(n)].key, Math.min(10, Number(qty))); }
     const a = e.target.closest("[data-add]");
-    if (a) { const p = state.byId[a.dataset.add]; addToCart(p.id, p.sizes[0]); toast(`${esc(p.title)} added`, { img: p.images[0] }); }
+    if (a) { const p = state.byId[a.dataset.add]; if (p && addToCart(p.id, p.sizes[0])) toast(`${esc(p.title)} added`, { img: p.images[0] }); }
   };
   $("#coupon-f", el).onsubmit = async (e) => {
     e.preventDefault();
@@ -309,8 +309,9 @@ addEventListener("popstate", () => render());
 
 // First visit: offer the wheel once (not during checkout), plus on exit intent.
 function wheelPrompt() {
-  const seen = () => localStorage.getItem("az_spun") || sessionStorage.getItem("az_wheel_seen");
-  const show = () => { if (seen() || /checkout|order|admin/.test(location.pathname) || $(".modal, .drawer")) return; sessionStorage.setItem("az_wheel_seen", "1"); openWheel(); };
+  let shown = false;
+  const seen = () => { try { return shown || localStorage.getItem("az_spun") || sessionStorage.getItem("az_wheel_seen"); } catch { return shown; } };
+  const show = () => { if (seen() || /checkout|order|admin/.test(location.pathname) || $(".modal, .drawer")) return; shown = true; try { sessionStorage.setItem("az_wheel_seen", "1"); } catch {} openWheel(); };
   setTimeout(show, 15000);
   document.addEventListener("mouseout", (e) => { if (!e.relatedTarget && e.clientY < 8) show(); });
 }

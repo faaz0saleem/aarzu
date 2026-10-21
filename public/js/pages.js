@@ -1,5 +1,5 @@
 // Page renderers. Each takes (main, ctx) and may return a cleanup function.
-import { $, $$, esc, rs, img, icon, api, state, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, flyToCart, pushRecent, quote, clearCart, setCoupon, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish, ext, listed, lineExtras, fillSlots, setCredit } from "./core.js";
+import { $, $$, esc, rs, img, icon, api, state, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, cartRoom, flyToCart, pushRecent, quote, clearCart, setCoupon, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish, ext, listed, lineExtras, fillSlots, setCredit } from "./core.js";
 
 const P = () => listed();
 const withImg = (f = () => true) => P().filter((p) => p.images?.length && f(p));
@@ -194,7 +194,8 @@ async function home(main) {
       if (x.hasAttribute("data-bundle")) {
         const a = originals[si], b = accs[ai];
         const sz = a.sizes.find((z) => a.stock[z] > 0);
-        addToCart(a.id, sz); addToCart(b.id, b.sizes[0]);
+        if (cartRoom(a.id, sz) < 1 || cartRoom(b.id, b.sizes[0]) < 1) return toast("One of these options is already at its stock limit in your bag.");
+        if (!addToCart(a.id, sz) || !addToCart(b.id, b.sizes[0])) return;
         flyToCart($("img", bd));
         toast(`Complete look added: ${esc(a.title)} + ${esc(b.title)}`, { img: a.images[0], action: "View bag", actionData: "open-cart" });
         return;
@@ -335,7 +336,7 @@ function product(main, { params, go }) {
   const related = withImg((x) => x.id !== p.id && x.gender === p.gender && x.category === p.category).slice(0, 4);
   const looks = withImg((x) => x.category === "accessory" && x.id !== p.id).slice(0, 4);
   const recent = state.recent.map((id) => state.byId[id]).filter((x) => x && x.id !== p.id).slice(0, 4);
-  const city = localStorage.getItem("az_city") || s.cities[0].name;
+  const city = (() => { try { return localStorage.getItem("az_city"); } catch { return ""; } })() || s.cities[0].name;
   const msg = encodeURIComponent(`Assalam o Alaikum! I'd like to order "${p.title}" (${rs(p.price)}). ${location.origin}/product/${p.slug}`);
   const q = quote();
   const nextTier = suitsOnly(p) && (s.multiBuy || []).find((t) => q.suitQty + 1 < t.minItems + 1 && q.suitQty + 1 >= t.minItems - 0);
@@ -353,7 +354,7 @@ function product(main, { params, go }) {
       <div id="stock"></div>
       <div data-slot="pdp-options" data-pid="${p.id}"></div>
       <div class="buy-row"><div class="qty"><button data-qd="-1" aria-label="Less">${icon("minus", "", 16)}</button><span id="qty">1</span><button data-qd="1" aria-label="More">${icon("plus", "", 16)}</button></div><button class="btn rani" id="add" ${stockLeft(p) ? "" : "disabled"}>${icon("shopping-bag", "", 18)} ${stockLeft(p) ? `Add to bag · ${rs(p.price)}` : "Sold out"}</button></div>
-      <div class="buy-alt"><button class="btn ghost" id="buy">Buy it now</button><a class="btn wa" href="https://wa.me/${s.contact.whatsapp}?text=${msg}" target="_blank" rel="noopener">${icon("whatsapp", "", 18)} Order on WhatsApp</a></div>
+      <div class="buy-alt"><button class="btn ghost" id="buy" ${stockLeft(p) ? "" : "disabled"}>Buy it now</button><a class="btn wa" href="https://wa.me/${s.contact.whatsapp}?text=${msg}" target="_blank" rel="noopener">${icon("whatsapp", "", 18)} Order on WhatsApp</a></div>
       <div data-slot="pdp-actions" data-pid="${p.id}"></div>
       ${nextTier && q.suitQty >= 1 ? `<div class="nudge">${icon("sparkles")}<span>Add this and you'll have <b>${q.suitQty + 1} suits</b>: <b>${nextTier.percent}% off</b> all of them.</span></div>` : suitsOnly(p) && s.multiBuy?.length ? `<div class="nudge">${icon("badge-percent")}<span>Buy <b>${s.multiBuy[0].minItems} suits</b>, save <b>${s.multiBuy[0].percent}%</b> · Buy <b>${s.multiBuy.at(-1).minItems}+</b>, save <b>${s.multiBuy.at(-1).percent}%</b></span></div>` : ""}
       <div class="delivery" id="delivery"></div>
@@ -370,10 +371,14 @@ function product(main, { params, go }) {
   ${related.length ? `<section class="sec" style="padding-bottom:0"><div class="sec-head-row"><h2>You may also <em style="color:var(--rani)">love</em></h2></div><div class="grid" style="--cols:4">${related.map((x, i) => card(x, { i, arched: true })).join("")}</div></section>` : ""}
   ${recent.length ? `<section class="sec" style="padding-bottom:0"><div class="sec-head-row"><h2>Recently viewed</h2></div><div class="grid" style="--cols:4">${recent.map((x, i) => card(x, { i })).join("")}</div></section>` : ""}
   </div>
-  <div class="sticky-buy" id="sticky"><img src="${esc(img(p.images[0]))}" alt="" referrerpolicy="no-referrer"><div class="t"><b>${esc(p.title)}</b>${rs(p.price)}</div><button class="btn rani sm" id="add2">Add to bag</button></div>`;
+  <div class="sticky-buy" id="sticky"><img src="${esc(img(p.images[0]))}" alt="" referrerpolicy="no-referrer"><div class="t"><b>${esc(p.title)}</b>${rs(p.price)}</div><button class="btn rani sm" id="add2" ${stockLeft(p) ? "" : "disabled"}>${stockLeft(p) ? "Add to bag" : "Sold out"}</button></div>`;
 
   const stockUi = () => {
     const n = size ? left(size) : stockLeft(p);
+    qty = Math.max(1, Math.min(qty, 10, size ? left(size) : 10));
+    $("#qty", main).textContent = qty;
+    $$("[data-qd]", main).forEach(b => { b.disabled = Number(b.dataset.qd) < 0 ? qty <= 1 : qty >= Math.min(10, size ? left(size) : 10); });
+    $$("#add, #add2, #buy", main).forEach(b => { b.disabled = n <= 0; });
     $("#stock", main).innerHTML = n > 0 && n <= 5 ? `<div class="stockbar"><span>🔥 Only <b>${n} left</b>${size && p.sizes.length > 1 ? ` in ${esc(size)}` : ""}. Order soon.</span><div class="b"><i style="width:${(n / 12) * 100}%"></i></div></div>` : n > 5 ? `<div class="stockbar ok"><span>${icon("circle-check", "", 15)} In stock, ready to dispatch</span></div>` : "";
   };
   const delivery = (c) => {
@@ -397,7 +402,7 @@ function product(main, { params, go }) {
         if (o.meta) extra.meta = { ...(extra.meta || {}), ...o.meta };
       }
     } catch (err) { return toast(esc(err.message), { icon: "x" }); }
-    addToCart(p.id, size, qty, extra);
+    if (!addToCart(p.id, size, qty, extra)) return;
     if (buy) return go("/checkout");
     flyToCart($("#main-img", main));
     toast(`<b>${esc(p.title)}</b> added to your bag`, { img: p.images[0], action: "View bag", actionData: "open-cart" });
@@ -405,14 +410,14 @@ function product(main, { params, go }) {
   main.addEventListener("click", (e) => {
     const t = e.target;
     const im = t.closest("[data-img]"); if (im) pick(Number(im.dataset.img));
-    const sz = t.closest("[data-sz]"); if (sz) { size = sz.dataset.sz; $$("[data-sz]", main).forEach((b) => b.classList.toggle("on", b === sz)); $("#sz-l", main).textContent = size; stockUi(); }
-    const qd = t.closest("[data-qd]"); if (qd) { qty = Math.max(1, Math.min(10, qty + Number(qd.dataset.qd))); $("#qty", main).textContent = qty; }
+    const sz = t.closest("[data-sz]"); if (sz && !sz.disabled) { size = sz.dataset.sz; $$("[data-sz]", main).forEach((b) => b.classList.toggle("on", b === sz)); $("#sz-l", main).textContent = size; stockUi(); }
+    const qd = t.closest("[data-qd]"); if (qd && !qd.disabled) { qty = Math.max(1, Math.min(10, size ? left(size) : 10, qty + Number(qd.dataset.qd))); stockUi(); }
     if (t.closest("#add") || t.closest("#add2")) add(false);
     if (t.closest("#buy")) add(true);
     if (t.closest("#sg")) sizeGuideModal();
     if (t.closest("#expand")) openOverlay(`<img src="${esc(img(p.images[active]))}" alt="" style="width:100%;border-radius:26px" referrerpolicy="no-referrer">`, { width: 760 });
   });
-  main.addEventListener("change", (e) => { if (e.target.id === "city") { localStorage.setItem("az_city", e.target.value); delivery(e.target.value); } });
+  main.addEventListener("change", (e) => { if (e.target.id === "city") { try { localStorage.setItem("az_city", e.target.value); } catch {} delivery(e.target.value); } });
   const stage = $("#stage", main);
   stage.addEventListener("mousemove", (e) => { const r = stage.getBoundingClientRect(); $("#main-img", main).style.transformOrigin = `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`; });
   stage.addEventListener("click", (e) => !e.target.closest("button") && stage.classList.toggle("zoom"));

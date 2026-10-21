@@ -1,8 +1,6 @@
 name: Store checks
 on:
-  push:
-    branches: [claude/modest-wright-6wemmy]
-  pull_request:
+  # Manual until this account's GitHub Actions billing lock is resolved.
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +20,8 @@ jobs:
         run: node tests/admin-login.test.mjs
       - name: Storefront regressions
         run: node tests/storefront-regressions.mjs
+      - name: Cart stock limits
+        run: node tests/cart-stock.test.mjs
       - name: CSV collection
         run: node tests/azmat-import.test.mjs
       - name: PHP store compatibility

@@ -66,24 +66,57 @@ export async function boot() {
   state.store = d.store;
   state.byId = Object.fromEntries(d.products.map((p) => [p.id, p]));
   state.bySlug = Object.fromEntries(d.products.map((p) => [p.slug, p]));
-  state.cart = state.cart.filter((l) => state.byId[l.id]);
+  const previous = Array.isArray(state.cart) ? state.cart : [];
+  state.cart = [];
+  for (const line of previous) {
+    if (!line || !state.byId[line.id]?.sizes.includes(line.size)) continue;
+    const key = lineKey(line), existing = state.cart.find(l => lineKey(l) === key);
+    const qty = Math.min(Math.max(0, Math.floor(Number(line.qty) || 0)), 10 - Number(existing?.qty || 0), cartRoom(line.id, line.size));
+    if (qty > 0) {
+      if (existing) existing.qty += qty;
+      else state.cart.push({ ...line, qty });
+    }
+  }
+  if (JSON.stringify(state.cart) !== JSON.stringify(previous)) {
+    save("az_cart", state.cart);
+    toast("Your bag was updated to match the available stock.");
+  }
 }
 
 export const quote = () => priceCart(state.cart, state.byId, state.store, state.coupon, { credits: state.credits });
+// Stock is shared by every line of the same item/size, including different add-ons.
+export function cartRoom(id, size, exceptKey) {
+  const p = state.byId[id], stock = Number(p?.stock?.[size]);
+  if (!p?.sizes.includes(size) || !Number.isFinite(stock)) return 0;
+  const used = state.cart.filter(l => l.id === id && l.size === size && (exceptKey === undefined || lineKey(l) !== exceptKey)).reduce((sum, l) => sum + Number(l.qty || 0), 0);
+  return Math.max(0, Math.floor(stock) - used);
+}
 // extra = { addons: [{ key, option }], meta: {...} } — lines with different extras stay separate
 export function addToCart(id, size, qty = 1, extra = {}) {
+  if (!Number.isInteger(qty) || qty < 1 || qty > 10) { toast("Please choose a quantity from 1 to 10."); return false; }
   const line = { id, size, qty, ...(extra.addons?.length ? { addons: extra.addons } : {}), ...(extra.meta ? { meta: extra.meta } : {}) };
   const key = lineKey(line);
   const l = state.cart.find((x) => lineKey(x) === key);
-  if (l) l.qty = Math.min(10, l.qty + qty);
+  const wanted = Number(l?.qty || 0) + qty;
+  if (wanted > Math.min(10, cartRoom(id, size, key))) {
+    const available = Math.min(10 - Number(l?.qty || 0), cartRoom(id, size));
+    toast(available > 0 ? `You can add ${available} more of this option.` : "This option has reached its limit in your bag or is sold out.");
+    return false;
+  }
+  if (l) l.qty = wanted;
   else state.cart.push(line);
   save("az_cart", state.cart);
   emit("cart");
+  return true;
 }
 export function setQty(key, qty) {
+  const line = state.cart.find(l => lineKey(l) === key);
+  if (!line || !Number.isInteger(qty) || qty < 0 || qty > 10) return false;
+  if (qty > Math.min(10, cartRoom(line.id, line.size, key))) { toast("That quantity is unavailable. Check the stock for this option."); return false; }
   state.cart = state.cart.map((l) => (lineKey(l) === key ? { ...l, qty } : l)).filter((l) => l.qty > 0);
   save("az_cart", state.cart);
   emit("cart");
+  return true;
 }
 export function clearCart() { state.cart = []; save("az_cart", []); emit("cart"); }
 // credit = { key, label, amount, payload } (gift card, reward points ...); null removes it
@@ -132,17 +165,19 @@ export function card(p, opts = {}) {
   const alt = p.images[1];
   const unstitched = p.sizes.length === 1;
   return `<article class="card ${opts.arched ? "arched" : ""}" data-id="${p.id}" ${opts.reveal !== false ? `data-reveal style="--i:${opts.i || 0}"` : ""}>
+    <div class="card-visual">
     <a class="card-media" href="/product/${p.slug}" data-link>
       <img class="main" src="${esc(img(p.images[0]))}" alt="${esc(p.title)}" loading="lazy" referrerpolicy="no-referrer">
       ${alt ? `<img class="alt" src="${esc(img(alt))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}
       <span class="shine"></span>
       ${badges(p)}
     </a>
-    <button class="wish ${wished ? "on" : ""}" data-wish="${p.id}" aria-label="Add to wishlist">${icon("heart", "", 18)}</button>
+    <button type="button" class="wish ${wished ? "on" : ""}" data-wish="${p.id}" aria-pressed="${wished}" aria-label="${wished ? "Remove from" : "Add to"} wishlist">${icon("heart", "", 18)}</button>
     ${ext.cardExtras.map((fn) => { try { return fn(p) || ""; } catch { return ""; } }).join("")}
     <div class="quick">
-      ${unstitched ? `<button class="btn rani sm" data-quick="${p.id}" data-size="${esc(p.sizes[0])}" ${stockLeft(p) ? "" : "disabled"}>${icon("shopping-bag", "", 16)} Add to bag</button>`
+      ${unstitched ? `<button type="button" class="btn rani sm" data-quick="${p.id}" data-size="${esc(p.sizes[0])}" ${stockLeft(p) ? "" : "disabled"}>${icon("shopping-bag", "", 16)}<span>${stockLeft(p) ? "Add to bag" : "Sold out"}</span></button>`
         : `<span class="lbl">Quick add · choose size</span>${p.sizes.map((s) => `<button class="sz" data-quick="${p.id}" data-size="${esc(s)}" ${(p.stock?.[s] ?? 0) > 0 ? "" : "disabled"}>${esc(s)}</button>`).join("")}`}
+    </div>
     </div>
     <div class="card-info">
       <div class="card-meta"><span>${esc(typeLabel(p))}</span>${stars(p.rating, false)}</div>
@@ -311,7 +346,11 @@ export function cardActions(root) {
     if (w) {
       e.preventDefault();
       const onNow = toggleWish(w.dataset.wish);
-      w.classList.toggle("on", onNow);
+      $$("[data-wish]").filter(b => b.dataset.wish === w.dataset.wish).forEach(b => {
+        b.classList.toggle("on", onNow);
+        b.setAttribute("aria-pressed", String(onNow));
+        b.setAttribute("aria-label", `${onNow ? "Remove from" : "Add to"} wishlist`);
+      });
       w.classList.remove("pop"); void w.offsetWidth; w.classList.add("pop");
       toast(onNow ? "Saved to your wishlist" : "Removed from wishlist", { icon: "heart", action: onNow ? "View" : null, href: "/wishlist" });
       return;
@@ -319,8 +358,9 @@ export function cardActions(root) {
     const q = e.target.closest("[data-quick]");
     if (q) {
       e.preventDefault();
+      if (q.disabled) return;
       const p = state.byId[q.dataset.quick];
-      addToCart(p.id, q.dataset.size);
+      if (!p || !addToCart(p.id, q.dataset.size)) return;
       flyToCart(q.closest(".card")?.querySelector("img.main"));
       toast(`<b>${esc(p.title)}</b> added to your bag`, { img: p.images[0], action: "View bag", actionData: "open-cart", href: "#" });
     }
