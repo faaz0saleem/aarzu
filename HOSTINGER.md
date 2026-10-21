@@ -12,8 +12,8 @@ This deployment uses PHP 8.2 or newer for the server. All existing HTML, CSS, Ja
    - `public_html/php/`
    - `public_html/public/`
    - `public_html/data/`
-4. Copy `.env.example` to `.env` in that same directory. Set `SITE_URL=https://aarzu.store`, `ADMIN_HOST=admin.aarzu.store` and `ADMIN_PASSWORD` to a unique password of at least 10 characters. Never commit `.env` to GitHub. The admin API stays locked until a password is configured; the storefront can still load.
-5. Open the storefront, a product, `/shop`, and `/admin`. Log in with the password from `.env`. A page refresh on `/shop` must still work. If an old welcome page appears, check `.htaccess` was uploaded and clear Hostinger's cache.
+4. Copy `.env.example` to `.env` in that same directory. Set `SITE_URL=https://aarzu.store` and `ADMIN_HOST=admin.aarzu.store`. The included `data/admin-auth.json` contains a salted verifier for the owner's configured password. To override it, set `ADMIN_PASSWORD` to a unique password of at least 10 characters. Never commit `.env` or a plaintext password to GitHub; the example placeholder is not accepted as a password.
+5. Open the storefront, a product, `/shop`, and `/admin`. Log in with the configured password, or the valid override from `.env`. A page refresh on `/shop` must still work. If an old welcome page appears, check `.htaccess` was uploaded and clear Hostinger's cache.
 
 There is no build, Composer install, database setup or `npm start` step on Hostinger. Upload the whole repository, rather than just `public/index.html`.
 
@@ -60,8 +60,10 @@ To repeat the import locally: `node scripts/import-azmat.mjs shalwar_kameez_100.
 
 ## Admin sign-in troubleshooting
 
-Set `ADMIN_PASSWORD` in the shared storefront root's `public_html/.env` (at least 10 characters). The optional `public_html/admin` entry point reads that same file. The application never commits the live password. If Hostinger has a separate application environment setting with the same name, keep that value consistent with the file.
+Upload the updated `php/bootstrap.php` and **`data/admin-auth.json`** along with the application files. Both admin entry points use the same private credentials file in the storefront root. It stores a PBKDF2-SHA256 verifier with a random salt and 600,000 iterations; the password itself is absent from the repository. Requests for `data/` files are blocked by the front controller.
+
+A valid `ADMIN_PASSWORD` in the shared root's `public_html/.env` or hosting environment overrides that verifier. Empty values and the example/default placeholders do not override it. The optional `public_html/admin` entry point reads the parent application's configuration. UTF-8 BOMs and empty hosting environment settings no longer prevent `.env` loading. Failed sign-ins are limited to ten per IP address in five minutes.
 
 Admin requests support both the standard Authorization header and `X-Aarzu-Admin` for hosts that do not forward Authorization to PHP. Updating the backend and `public/js/core.js` / `public/js/pages.js` together is required. Sign-in shows the actual server error: a 503 indicates missing server configuration; an unavailable API indicates that the PHP files or subdomain document root need checking. Browser storage restrictions do not prevent sign-in. After uploading, refresh the admin page to load the updated JavaScript.
 
-Admin sign-in regression checks: `node tests/admin-login.test.mjs`.
+Admin sign-in regression checks: `node tests/admin-login.test.mjs`, `node tests/admin-password-config.test.mjs` and `node tests/php-admin-password.test.mjs` (PHP 8.2+). Tests use isolated fixture credentials and temporary data, never the live store.

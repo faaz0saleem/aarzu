@@ -13,15 +13,17 @@ import { Catalog } from "./lib/catalog.mjs";
 import { serveImage } from "./lib/imgproxy.mjs";
 import { priceCart } from "./public/js/pricing.js";
 import { scheduleBackups } from "./lib/backup.mjs";
+import { adminPasswordConfigured, adminPasswordMatches } from "./lib/admin-auth.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, "public");
 const DATA = path.join(ROOT, "data");
 const PORT = Number(process.env.PORT) || 3000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "aarzu-admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const ADMIN_CREDENTIAL_FILE = path.join(DATA, "admin-auth.json");
 const PRODUCTION = process.env.NODE_ENV === "production";
-if (PRODUCTION && (!process.env.ADMIN_PASSWORD || ADMIN_PASSWORD.length < 10 || ADMIN_PASSWORD === "aarzu-admin")) {
-  console.error("Refusing to start in production without a strong ADMIN_PASSWORD (10+ characters) in .env");
+if (PRODUCTION && !adminPasswordConfigured(ADMIN_PASSWORD, ADMIN_CREDENTIAL_FILE)) {
+  console.error("Configure ADMIN_PASSWORD (10+ characters) in .env or upload data/admin-auth.json before starting in production");
   process.exit(1);
 }
 const STATUSES = ["placed", "confirmed", "dispatched", "delivered", "cancelled", "returned"];
@@ -153,14 +155,17 @@ function resolveCoupon(code, phone) {
 }
 
 function adminOk(req) {
-  const want = Buffer.from(ADMIN_PASSWORD);
+  const key = `admin-auth:${clientIp(req)}`, now = Date.now();
+  const failures = (hits.get(key) || []).filter(time => time > now - 300000);
+  if (failures.length >= 10) return false;
   const authorization = typeof req.headers.authorization === "string" ? req.headers.authorization.replace(/^Bearer\s+/i, "") : "";
   const fallback = typeof req.headers["x-aarzu-admin"] === "string" ? req.headers["x-aarzu-admin"] : "";
-  return [authorization, fallback].some(token => {
-    if (!token) return false;
-    const given = Buffer.from(token);
-    return given.length === want.length && crypto.timingSafeEqual(given, want);
-  });
+  if ([...new Set([authorization, fallback])].some(token => adminPasswordMatches(token, ADMIN_PASSWORD, ADMIN_CREDENTIAL_FILE))) {
+    hits.delete(key);
+    return true;
+  }
+  limited(key, 10, 300000);
+  return false;
 }
 
 // Live viewers: real browser sessions currently on a product page.
@@ -531,7 +536,7 @@ scheduleBackups();
 server.listen(PORT, () => {
   console.log(`\n  ✿ Aarzu is live → http://localhost:${PORT}`);
   console.log(`    ${catalog.products.length} products loaded · ${modules.length} feature modules · admin at /admin`);
-  if (!process.env.ADMIN_PASSWORD) console.log(`    (admin password is the default "aarzu-admin"; set ADMIN_PASSWORD in .env before going live)`);
+  if (!process.env.ADMIN_PASSWORD) console.log("    Admin uses data/admin-auth.json; a valid ADMIN_PASSWORD in .env overrides it.");
   brandHint();
 });
 

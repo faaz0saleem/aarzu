@@ -7,7 +7,7 @@ async function runAdminChecks(files, { assert, Buffer, crypto, report }) {
   const secret = "SampleAdminPass!";
   const make = (deps, source, name) => new Function(...Object.keys(deps), source + "\nreturn " + name + ";")(...Object.values(deps));
   const nodeAuth = files["server.mjs"].match(/function adminOk\(req\) \{[\s\S]*?\n\}/)[0];
-  const adminOk = make({ Buffer, crypto, ADMIN_PASSWORD: secret }, nodeAuth, "adminOk");
+  const adminOk = make({ ADMIN_PASSWORD: secret, ADMIN_CREDENTIAL_FILE: "fixture", adminPasswordMatches: (value, expected) => typeof value === "string" && value !== "" && value === expected, clientIp: () => "fixture", hits: new Map(), limited: () => false }, nodeAuth, "adminOk");
   assert.equal(adminOk({ headers: { authorization: "Bearer " + secret } }), true);
   assert.equal(adminOk({ headers: { "x-aarzu-admin": secret } }), true);
   assert.equal(adminOk({ headers: { authorization: "", "x-aarzu-admin": secret } }), true);

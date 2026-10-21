@@ -3,14 +3,21 @@ declare(strict_types=1);
 date_default_timezone_set('UTC');
 define('AZ_ROOT', dirname(__DIR__));
 define('AZ_JSON', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+$GLOBALS['az_file_env']=[];
 foreach (is_file(AZ_ROOT.'/.env') ? file(AZ_ROOT.'/.env', FILE_IGNORE_NEW_LINES) : [] as $line) {
+    $line=preg_replace('/^\xEF\xBB\xBF/', '', $line);
     if (!preg_match('/^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/', $line, $m)) continue;
     $value = $m[2];
     if (strlen($value) >= 2 && (($value[0] === '"' && substr($value,-1) === '"') || ($value[0] === "'" && substr($value,-1) === "'"))) $value = substr($value,1,-1);
     else $value = preg_replace('/\s+#.*$/', '', $value);
-    if (getenv($m[1]) === false) putenv($m[1].'='.$value);
+    $old=getenv($m[1]);
+    if ($old===false || $old==='' || ($m[1]==='ADMIN_PASSWORD' && (strlen($old)<10 || in_array($old,['aarzu-admin','change-me-to-a-long-password'],true)))) {
+        $GLOBALS['az_file_env'][$m[1]]=$value;
+        putenv($m[1].'='.$value);
+    }
 }
-function az_env(string $key, string $default=''): string { $v=getenv($key); return $v===false ? $default : $v; }
+// FastCGI's getenv() can keep returning its original value after putenv().
+function az_env(string $key, string $default=''): string { $v=$GLOBALS['az_file_env'][$key]??getenv($key); return $v===false ? $default : $v; }
 define('AZ_RUNTIME', az_env('RUNTIME_DIR', AZ_ROOT.'/data/runtime'));
 $GLOBALS['az_cache']=[]; $GLOBALS['az_dirty']=[]; $GLOBALS['az_after']=[];
 function az_now(): string { return gmdate('Y-m-d\TH:i:s.000\Z'); }
@@ -87,18 +94,46 @@ function az_limited(string $key,int $max,int $seconds): bool {
     if(count($all)>5000) $all=array_slice($all,-5000,null,true);
     az_set('rate-limits',$all); return count($list)>$max;
 }
-function az_admin(): void {
+function az_admin_plain_password(): string {
     $pw=az_env('ADMIN_PASSWORD');
-    if(strlen($pw)<10 || $pw==='aarzu-admin') az_fail(503,'Set a strong ADMIN_PASSWORD (10+ characters) in .env before opening the admin dashboard.');
+    return strlen($pw)>=10 && !in_array($pw,['aarzu-admin','change-me-to-a-long-password'],true) ? $pw : '';
+}
+function az_admin_credential(): ?array {
+    static $loaded=false, $credential=null;
+    if($loaded) return $credential;
+    $loaded=true;
+    try {
+        $c=az_read(AZ_ROOT.'/data/admin-auth.json',null);
+        if(!is_array($c) || ($c['algorithm']??'')!=='pbkdf2-sha256' || !is_int($c['iterations']??null) || $c['iterations']<100000 || $c['iterations']>2000000 || !is_string($c['salt']??null) || !preg_match('/^(?:[a-f0-9]{2}){16,64}$/i',$c['salt']) || !is_string($c['hash']??null) || !preg_match('/^[a-f0-9]{64}$/i',$c['hash'])) return null;
+        $credential=$c;
+    } catch(Throwable $e) { return null; }
+    return $credential;
+}
+function az_admin_password_matches(string $given): bool {
+    if($given==='' || strlen($given)>512) return false;
+    $pw=az_admin_plain_password();
+    if($pw!=='') return hash_equals($pw,$given);
+    $c=az_admin_credential();
+    return $c!==null && hash_equals(strtolower($c['hash']),hash_pbkdf2('sha256',$given,hex2bin($c['salt']),$c['iterations'],64));
+}
+function az_admin(): void {
+    if(az_admin_plain_password()==='' && az_admin_credential()===null) az_fail(503,'Admin credentials are not configured. Upload data/admin-auth.json or set ADMIN_PASSWORD (10+ characters) in the storefront root .env.');
+    $key='admin-auth:'.az_ip(); $limits=az_db('rate-limits');
+    $failures=array_values(array_filter($limits[$key]['times']??[],fn($t)=>$t>time()-300));
+    if(count($failures)>=10) az_fail(429,'Too many failed sign-in attempts. Please try again in five minutes.');
     // FastCGI/LiteSpeed may forward Authorization under a redirect key.
-    $auth=[]; foreach(['HTTP_AUTHORIZATION','REDIRECT_HTTP_AUTHORIZATION','REDIRECT_REDIRECT_HTTP_AUTHORIZATION'] as $key) if(!empty($_SERVER[$key])) $auth[]=(string)$_SERVER[$key];
+    $auth=[]; foreach(['HTTP_AUTHORIZATION','REDIRECT_HTTP_AUTHORIZATION','REDIRECT_REDIRECT_HTTP_AUTHORIZATION'] as $headerKey) if(!empty($_SERVER[$headerKey])) $auth[]=(string)$_SERVER[$headerKey];
     $tokens=[]; if(!empty($_SERVER['HTTP_X_AARZU_ADMIN'])) $tokens[]=(string)$_SERVER['HTTP_X_AARZU_ADMIN'];
     if(function_exists('getallheaders')) foreach(getallheaders() as $name=>$value) {
         if(strtolower($name)==='authorization') $auth[]=(string)$value;
         if(strtolower($name)==='x-aarzu-admin') $tokens[]=(string)$value;
     }
     foreach($auth as $header) $tokens[]=preg_replace('/^Bearer\s+/i','',$header);
-    foreach($tokens as $given) if($given!=='' && hash_equals($pw,$given)) return;
+    foreach(array_unique($tokens) as $given) if(az_admin_password_matches($given)) {
+        if(isset($limits[$key])) { unset($limits[$key]); az_set('rate-limits',$limits); }
+        return;
+    }
+    az_limited($key,10,300);
     az_fail(401,'Wrong password');
 }
 function az_store(): array { return az_read(AZ_ROOT.'/data/store.json'); }

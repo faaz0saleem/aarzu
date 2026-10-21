@@ -1,0 +1,28 @@
+name: Store checks
+on:
+  push:
+    branches: [claude/modest-wright-6wemmy]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  store:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: PHP syntax
+        run: php -l php/bootstrap.php
+      - name: Password configuration
+        run: node tests/admin-password-config.test.mjs
+      - name: PHP password verification
+        run: node tests/php-admin-password.test.mjs
+      - name: Admin sign-in
+        run: node tests/admin-login.test.mjs
+      - name: Storefront regressions
+        run: node tests/storefront-regressions.mjs
+      - name: CSV collection
+        run: node tests/azmat-import.test.mjs
+      - name: PHP store compatibility
+        run: node tests/php-smoke.mjs

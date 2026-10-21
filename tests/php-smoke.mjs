@@ -12,6 +12,10 @@ import { priceCart } from '../public/js/pricing.js';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'aarzu-php-'));
 const runtime=path.join(temp,'runtime'); fs.mkdirSync(runtime);
+// Exercise order/restock flows using stock in this temporary store only.
+const fixtureProduct=JSON.parse(fs.readFileSync(path.join(root,'data/catalog.brands.json'),'utf8')).find(p=>p.category==='unstitched'&&p.stock[p.sizes[0]]>0);
+const fixtureInventory={[fixtureProduct.id]:{[fixtureProduct.sizes[0]]:10}};
+fs.writeFileSync(path.join(runtime,'inventory.json'),JSON.stringify(fixtureInventory));
 const password='test-only-strong-admin-password';
 let run, shutdown=()=>{}, cookies='', warnings=[];
 if(process.env.PHP_WASM_MODULES) {
@@ -50,7 +54,7 @@ const customer=()=>({name:'Test Customer',phone:'0300'+String(phoneNo++).padStar
 try {
   const initial=await request('/api/catalog'); const cat=initial.data;
   assert.equal(initial.headers['cache-control'][0],'no-cache');
-  const source=Object.create(Catalog.prototype); source.dataDir=path.join(root,'data'); source.photoDir=path.join(root,'public/images/originals/photos'); source.db={get:(_,d)=>d}; source.files=['originals.json','catalog.brands.json',...fs.readdirSync(source.dataDir).filter(f=>/^catalog\..+\.json$/.test(f)&&f!=='catalog.brands.json').sort(),'media.json'].map(f=>path.join(source.dataDir,f)); source.load();
+  const source=Object.create(Catalog.prototype); source.dataDir=path.join(root,'data'); source.photoDir=path.join(root,'public/images/originals/photos'); source.db={get:(name,d)=>name==='inventory'?fixtureInventory:d}; source.files=['originals.json','catalog.brands.json',...fs.readdirSync(source.dataDir).filter(f=>/^catalog\..+\.json$/.test(f)&&f!=='catalog.brands.json').sort(),'media.json'].map(f=>path.join(source.dataDir,f)); source.load();
   assert.deepEqual(cat.products,source.publicList()); assert(!('coupons' in cat.store)); assert(cat.products.every(p=>!p.source));
   const byId=Object.fromEntries(cat.products.map(p=>[p.id,p])); const store=JSON.parse(fs.readFileSync(path.join(root,'data/store.json')));
   const p=cat.products.find(p=>p.category==='unstitched'&&p.stock[p.sizes[0]]>3); const line={id:p.id,size:p.sizes[0],qty:1};
@@ -110,6 +114,9 @@ try {
   for(const kind of ['orders','courier']) assert((await request('/api/admin/export/'+kind+'.csv',null,{admin:true})).text.includes(kind==='orders'?bought.id:'consignee name'));
   const reset=(await request('/api/admin/accounts/'+member.id+'/password',{}, {admin:true})).data; await request('/api/account/me',null,{expected:401}); await request('/api/account/login',{phone:ac.phone,password:reset.temp});
   await request('/api/account/logout',{}); await request('/api/account/me',null,{expected:401});
+  for(let i=0;i<10;i++) await request('/api/admin/summary',null,{expected:401});
+  await request('/api/admin/summary',null,{expected:429});
+  assert((await request('/api/catalog')).data.products.length>0);
   assert.deepEqual(warnings,[]);
   console.log('PASS restock alerts, drafts, oversell protection, forms, spin, admin reports, CSV and password reset');
   console.log('All PHP compatibility checks passed.');
