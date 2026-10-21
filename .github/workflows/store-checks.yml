@@ -26,3 +26,5 @@ jobs:
         run: node tests/azmat-import.test.mjs
       - name: PHP store compatibility
         run: node tests/php-smoke.mjs
+      - name: Search visibility
+        run: node tests/seo.test.mjs

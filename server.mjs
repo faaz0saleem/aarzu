@@ -13,6 +13,7 @@ import { Catalog } from "./lib/catalog.mjs";
 import { serveImage } from "./lib/imgproxy.mjs";
 import { priceCart } from "./public/js/pricing.js";
 import { scheduleBackups } from "./lib/backup.mjs";
+import { pageSeo, seoGraph, robotsText, sitemapUrls, seoPath } from "./public/js/seo.js";
 import { adminPasswordConfigured, adminPasswordMatches } from "./lib/admin-auth.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -75,7 +76,7 @@ function send(req, res, status, body, type = "application/json; charset=utf-8", 
   res.end(req.method === "HEAD" ? undefined : buf);
 }
 
-const json = (req, res, status, obj) => send(req, res, status, obj);
+const json = (req, res, status, obj) => send(req, res, status, obj, "application/json; charset=utf-8", { "X-Robots-Tag": "noindex" });
 const fail = (req, res, status, error) => json(req, res, status, { error });
 
 function readBody(req, limit = 100_000) {
@@ -413,91 +414,45 @@ function publicStore() {
 // ------------------------------------------------------------------ static
 
 const indexHtml = () => fs.readFileSync(path.join(PUBLIC, "index.html"), "utf8");
-const originOf = (req) => process.env.SITE_URL?.replace(/\/$/, "") || `${req.headers["x-forwarded-proto"] === "https" ? "https" : "http"}://${req.headers.host || "localhost"}`;
-const attr = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-// Outside photos go through our /img proxy so shared links and search results never show the source site.
-const absUrl = (origin, u) => (/^https?:/.test(u) ? `${origin}/img?u=${encodeURIComponent(u)}` : origin + u);
+const seoConfig = () => {
+  const c = JSON.parse(fs.readFileSync(path.join(PUBLIC, "seo-config.json"), "utf8"));
+  const origin = process.env.SITE_URL?.replace(/\/$/, "");
+  if (origin && /^https?:\/\/[^/]+$/.test(origin)) c.siteUrl = origin;
+  return c;
+};
+const originOf = () => seoConfig().siteUrl;
+const adminHost = req => (req.headers.host || "").split(":")[0].toLowerCase() === (process.env.ADMIN_HOST || "admin.aarzu.store").toLowerCase();
+const attr = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const jsonScript = (id, type, data) => `<script id="${id}" type="${type}">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
 
-// Structured data (JSON-LD) for search engines. "<" is escaped so no value can close the script tag.
-const ldJson = (graph) => `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c")}</script>`;
-
-// Designer Edit pieces come from other labels: structured data never names the label.
-const brandRe = (brand) => new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
-function unbranded(text, brand) {
-  const t = String(text || "").replace(/\s+/g, " ").trim();
-  if (!brand) return t;
-  const marked = t.replace(brandRe(brand), "\u0000");
-  return marked.replace(/This piece comes from [^.!?]*\u0000[^.!?]*[.!?]?/g, "").split(/(?<=[.!?])\s+/).filter((s) => !s.includes("\u0000")).join(" ").replace(/\s+/g, " ").trim();
-}
-
-function structuredData(url, origin, p) {
-  const s = store();
-  const name = s.name || "Aarzu";
-  if (url.pathname === "/" || url.pathname === "/index.html") {
-    const sameAs = Object.values(s.social || {}).filter((u) => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) && x.pathname.length > 1; } catch { return false; } });
-    return ldJson([
-      { "@type": "Organization", "@id": `${origin}/#organization`, name, alternateName: s.urdu, url: `${origin}/`, logo: `${origin}/brand/aarzu-logo.png`, ...(sameAs.length ? { sameAs } : {}) },
-      { "@type": "WebSite", "@id": `${origin}/#website`, name, alternateName: s.urdu, url: `${origin}/`, publisher: { "@id": `${origin}/#organization` },
-        potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: `${origin}/shop?q={search_term_string}` }, "query-input": "required name=search_term_string" } },
-    ]);
-  }
-  if (!p) return "";
-  const own = p.collection === "originals";
-  const brand = own ? null : p.source?.brand;
-  const link = `${origin}/product/${p.slug}`;
-  const title = brand ? p.title.replace(brandRe(brand), " ").replace(/\s+/g, " ").replace(/^[\s·|-]+|[\s·|-]+$/g, "") : p.title;
-  const inStock = Object.values(catalog.stockOf(p)).some((n) => n > 0);
-  const reviews = db.get("reviews", []).filter((r) => r.productId === p.id && r.rating >= 1);
-  const avg = reviews.reduce((a, r) => a + r.rating, 0) / (reviews.length || 1);
-  const crumb = p.category === "accessory" ? ["Dupattas & Shawls", "/shop?category=accessory"] : p.category === "giftcard" ? ["Gift cards", "/gift-cards"] : p.gender === "women" ? ["Women", "/shop?gender=women"] : p.gender === "men" ? ["Men", "/shop?gender=men"] : ["Shop", "/shop"];
-  return ldJson([
-    {
-      "@type": "Product", "@id": `${link}#product`, name: title, image: p.images.map((u) => absUrl(origin, u)), description: unbranded(p.description, brand) || title, sku: p.id, url: link,
-      ...(own ? { brand: { "@type": "Brand", name: "Aarzu" } } : {}),
-      offers: { "@type": "Offer", url: link, priceCurrency: "PKR", price: p.price, availability: `https://schema.org/${inStock ? "InStock" : "OutOfStock"}`, itemCondition: "https://schema.org/NewCondition", seller: { "@type": "Organization", name } },
-      ...(reviews.length ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Math.round(avg * 10) / 10, reviewCount: reviews.length, bestRating: 5, worstRating: 1 } } : {}),
-    },
-    { "@type": "BreadcrumbList", itemListElement: [["Home", "/"], crumb, [title, `/product/${p.slug}`]].map(([n, u], i) => ({ "@type": "ListItem", position: i + 1, name: n, item: origin + u })) },
-  ]);
-}
-
-// Link previews on WhatsApp/Facebook/Instagram don't run JavaScript, so the
-// server writes the title, description and image for each page into the HTML.
 function pageHtml(req, url) {
-  const origin = originOf(req);
-  let title = "Aarzu · Shalwar Kameez with the Soul of Pakistan";
-  let desc = "Designer favourites for less and our own Aarzu Originals. Cash on delivery all over Pakistan.";
-  let image = `${origin}/brand/aarzu-logo-stacked.png`;
-  let type = "website";
-  const m = url.pathname.match(/^\/product\/([\w-]+)/);
-  const p = m && catalog.bySlug[m[1]];
-  if (p) {
-    title = `${p.title} · Rs ${p.price.toLocaleString("en-PK")} | Aarzu`;
-    desc = unbranded(p.description, p.collection === "originals" ? null : p.source?.brand).slice(0, 200);
-    const im = p.images[0] || "";
-    image = absUrl(origin, im);
-    type = "product";
-  } else if (url.pathname.startsWith("/shop")) title = "Shop shalwar kameez | Aarzu";
-  else if (url.pathname.startsWith("/western")) title = "Aarzu West · Coming soon";
-  const noindex = /^\/(admin|checkout|order|account)/.test(url.pathname);
-  const tags = `<meta property="og:site_name" content="Aarzu"><meta property="og:type" content="${type}"><meta property="og:title" content="${attr(title)}"><meta property="og:description" content="${attr(desc)}"><meta property="og:image" content="${attr(image)}"><meta property="og:url" content="${attr(origin + url.pathname)}"><meta name="twitter:card" content="summary_large_image"><link rel="canonical" href="${attr(origin + url.pathname)}">${noindex ? '<meta name="robots" content="noindex">' : ""}${p ? `<meta property="product:price:amount" content="${p.price}"><meta property="product:price:currency" content="PKR">` : ""}`;
-  return indexHtml()
-    .replace(/<title>[^<]*<\/title>/, `<title>${attr(title)}</title>`)
-    .replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${attr(desc)}">`)
-    .replace("</head>", () => `  ${tags}${structuredData(url, origin, p)}\n</head>`);
+  const config = seoConfig(), storeData = store();
+  const meta = pageSeo(url, config, catalog.publicList(), storeData, { admin: adminHost(req) });
+  let tags = `<link rel="canonical" href="${attr(meta.canonical)}"><meta name="robots" content="${meta.noindex ? "noindex,follow" : "index,follow,max-image-preview:large"}">`;
+  for (const [key, value] of Object.entries({ site_name: config.siteName, type: meta.product ? "product" : "website", title: meta.title, description: meta.description, image: meta.image, "image:alt": meta.imageAlt, url: meta.canonical, locale: "en_PK" })) tags += `<meta property="og:${key}" content="${attr(value)}">`;
+  for (const [key, value] of Object.entries({ card: "summary_large_image", title: meta.title, description: meta.description, image: meta.image, "image:alt": meta.imageAlt })) tags += `<meta name="twitter:${key}" content="${attr(value)}">`;
+  if (meta.product) tags += `<meta property="product:price:amount" content="${meta.product.price}"><meta property="product:price:currency" content="PKR">`;
+  tags += jsonScript("aarzu-seo-config", "application/json", config) + jsonScript("aarzu-structured-data", "application/ld+json", { "@context": "https://schema.org", "@graph": seoGraph(meta, config, storeData) });
+  const html = indexHtml().replace(/<title>[^<]*<\/title>/, () => `<title>${attr(meta.title)}</title>`)
+    .replace(/<meta name="description" content="[^"]*">/, () => `<meta name="description" content="${attr(meta.description)}">`)
+    .replace("</head>", () => `${tags}\n</head>`);
+  return { html, meta };
 }
-
-function sitemap(req) {
-  const o = originOf(req);
-  const pages = ["/", "/shop", "/shop?gender=women", "/shop?gender=men", "/shop?category=accessory", "/shop?collection=originals", "/western", "/about", "/faq", "/size-guide", "/shipping", "/contact", "/privacy", "/terms", "/returns-policy", "/stitching", "/gift-cards", "/rewards"];
-  const urls = [...pages.map((u) => o + u), ...catalog.publicList().filter((p) => !p.unlisted).map((p) => `${o}/product/${p.slug}`)];
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${attr(u)}</loc></url>`).join("\n")}\n</urlset>\n`;
+function sendPage(req, res, url) {
+  const { html, meta } = pageHtml(req, url);
+  return send(req, res, meta.status, html, MIME[".html"], { "Cache-Control": "no-cache", ...(meta.noindex ? { "X-Robots-Tag": "noindex, follow" } : {}) });
+}
+function sitemap() {
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls(seoConfig(), catalog.publicList()).map(u => `<url><loc>${attr(u)}</loc></url>`).join("\n")}\n</urlset>\n`;
 }
 
 function serveStatic(req, res, url) {
-  if (url.pathname === "/robots.txt") return send(req, res, 200, `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /checkout\nDisallow: /api/\nSitemap: ${originOf(req)}/sitemap.xml\n`, MIME[".txt"]);
-  if (url.pathname === "/sitemap.xml") return send(req, res, 200, sitemap(req), "application/xml; charset=utf-8");
-  if (url.pathname === "/" || url.pathname === "/index.html") return send(req, res, 200, pageHtml(req, url), MIME[".html"], { "Cache-Control": "no-cache" });
+  if (url.pathname === "/robots.txt") return send(req, res, 200, robotsText(originOf(), adminHost(req)), MIME[".txt"]);
+  if (url.pathname === "/sitemap.xml") return adminHost(req) ? send(req, res, 404, "Not found", MIME[".txt"]) : send(req, res, 200, sitemap(), "application/xml; charset=utf-8");
+  if (adminHost(req) && ["/", "/index.html"].includes(url.pathname)) return send(req, res, 302, "", MIME[".txt"], { Location: "/admin", "X-Robots-Tag": "noindex" });
+  const clean = seoPath(url.pathname);
+  if (clean !== url.pathname) return send(req, res, 301, "", MIME[".txt"], { Location: clean + url.search });
+  if (url.pathname === "/") return sendPage(req, res, url);
   // App files are always revalidated so phones pick up a new service worker or manifest quickly.
   if (url.pathname === "/sw.js" || url.pathname === "/manifest.webmanifest") {
     const f = path.join(PUBLIC, url.pathname);
@@ -515,7 +470,7 @@ function serveStatic(req, res, url) {
     }
     if (path.extname(rel)) return send(req, res, 404, "Not found", "text/plain; charset=utf-8");
     // Single-page app: every page route gets index.html (with that page's preview tags)
-    send(req, res, 200, pageHtml(req, url), MIME[".html"], { "Cache-Control": "no-cache" });
+    sendPage(req, res, url);
   });
 }
 

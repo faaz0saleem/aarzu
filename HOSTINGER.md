@@ -75,3 +75,13 @@ Quick-add controls are positioned relative to the photo, with a separate row on 
 ## Checkout autofill compatibility
 
 Upload `php/api.php` and `public/js/pages.js` together. Some browsers autofilled the former off-screen `website` spam field with a country such as “Pakistan”, causing otherwise valid orders to be rejected. PHP and Node now ignore that legacy field so open checkout tabs work after the backend update. New checkout pages use a fully hidden, inert guard with a name unrelated to address/contact autofill. Customer validation, stock checks and rate limits still apply.
+
+## Search visibility
+
+`public/seo-config.json` holds the public brand name, primary website URL and page descriptions. Upload it and `public/js/seo.js` **before** uploading the updated `php/pages.php` and `public/js/app.js`. Upload `php/bootstrap.php` too for the API noindex headers. The Node server uses the same client metadata module. This changes metadata and crawl responses, not the storefront layout.
+
+Robots.txt allows the public `/api/catalog` resource required to render the store while blocking private API paths. The catalog response itself has a noindex header. Product pages expose actual prices, stock, materials, shipping charges and breadcrumbs. Brand and website markup uses Aarzu, Aarzu Store and آرزو; placeholder addresses, phone numbers and empty social profile links are excluded. Add only verified public profiles to the store's social settings.
+
+The sitemap contains canonical public pages and current product URLs, omitting search/filter variants, paused sections and private screens. Missing pages and products return 404; `/index.html` and trailing slash variants redirect to their canonical paths. Admin pages and the admin hostname are marked noindex. Client navigation updates titles, descriptions, canonical links and structured data, so these do not stay attached to the previous page.
+
+Checks: `node tests/seo.test.mjs` and `node tests/php-smoke.mjs` (PHP 8.2+). After deployment, resubmit `https://aarzu.store/sitemap.xml` in the existing Search Console property and use URL Inspection → Test live URL → Request indexing for the homepage and a product. Keep the Google Business Profile's name and website URL consistent, and use its real public profile URL for any profile association. Google controls crawling, indexing, search snippets and ranking; these changes do not guarantee a first-place result.

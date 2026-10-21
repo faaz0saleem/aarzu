@@ -12,6 +12,7 @@ try {
         az_fail(404, 'Not found');
     }
     if ($path === '/img') { require __DIR__ . '/php/images.php'; az_image((string)($_GET['u'] ?? '')); }
+    if ($path === '/index.html') { require __DIR__ . '/php/pages.php'; az_page($path); }
     $public = realpath(__DIR__ . '/public');
     $file = realpath($public . $path);
     if ($file && str_starts_with($file, $public . DIRECTORY_SEPARATOR) && is_file($file)) {
@@ -21,6 +22,7 @@ try {
         header('Content-Type: ' . $types[$ext]);
         header('Cache-Control: ' . (in_array($ext, ['woff2','svg','png','jpg','jpeg','webp','avif']) ? 'public, max-age=604800' : 'no-cache'));
         header('X-Content-Type-Options: nosniff');
+        if ($ext === 'json') header('X-Robots-Tag: noindex');
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') readfile($file);
         exit;
     }

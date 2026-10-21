@@ -2,6 +2,7 @@
 import { $, $$, esc, rs, img, icon, api, state, on, boot, quote, setQty, setCoupon, addToCart, card, toast, openOverlay, closeOverlay, reveal, confetti, cardActions, sid, ext, fillSlots, setNavigate, listed, lineExtras } from "./core.js";
 import { FEATURES } from "./features/index.js";
 import { routes } from "./pages.js";
+import { updateSeo } from "./seo.js";
 
 const BUNTING = ["#D6246E", "#F2A900", "#0FA3A3", "#F26B1D", "#1C2A6B", "#0B5D4B", "#E43F7B", "#FFD23F"];
 const bunting = (n = 64) => `<div class="bunting-row">${Array.from({ length: n }, (_, i) => `<i style="--n:${i};background:${BUNTING[i % BUNTING.length]}"></i>`).join("")}</div>`;
@@ -289,8 +290,8 @@ async function render({ replace = false } = {}) {
   });
   if (!replace) scrollTo({ top: 0, behavior: "instant" });
   fillSlots(view, { url });
-  const h1 = view.querySelector("h1")?.textContent.replace(/\s+/g, " ").trim();
-  document.title = url.pathname === "/" || !h1 ? "Aarzu · Shalwar Kameez with the Soul of Pakistan" : `${h1} | Aarzu`;
+  try { updateSeo(document, url, state.products, state.store); }
+  catch (error) { console.warn("[seo] Metadata update skipped:", error.message); }
   reveal(view);
   for (const fn of ext.routeHooks) try { fn(url, view); } catch (e) { console.error(e); }
 }

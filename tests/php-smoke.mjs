@@ -64,6 +64,26 @@ try {
   for(const secret of ['/data/store.json','/data/runtime/orders.json','/php/bootstrap.php','/.env','/.git/config','/server.mjs']) await request(secret,null,{expected:404});
   assert((await request('/shop')).text.includes('/js/app.js')); assert((await request('/product/'+p.slug)).text.includes('property="og:type" content="product"')); assert((await request('/sitemap.xml')).text.includes('/product/'+p.slug));
   await request('/',null,{host:'admin.aarzu.test',expected:302});
+  const home=(await request('/')).text;
+  assert(home.includes("Aarzu | Women&#039;s Shalwar Kameez &amp; Unstitched Suits"));
+  assert(home.includes('"@type":"OnlineStore"'));
+  const robots=(await request('/robots.txt')).text;
+  assert(robots.includes('Allow: /api/catalog$'));
+  assert(robots.includes('Disallow: /api/'));
+  assert.equal((await request('/robots.txt',null,{host:'admin.aarzu.test'})).text,'User-agent: *\nDisallow: /\n');
+  const xml=(await request('/sitemap.xml')).text;
+  assert([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].every(m=>!m[1].includes('?'))); assert(!xml.includes('/western')); assert(!xml.includes('/admin'));
+  assert(xml.includes('/fabric-guide'));
+  await request('/product/no-such-aarzu-product',null,{expected:404});
+  await request('/does-not-exist',null,{expected:404});
+  await request('/index.html',null,{expected:301});
+  await request('/shop/',null,{expected:301});
+  const productHtml=(await request('/product/'+p.slug)).text;
+  const graph=JSON.parse(productHtml.match(/<script id="aarzu-structured-data" type="application\/ld\+json">([\s\S]*?)<\/script>/)[1])['@graph'];
+  assert(graph.some(x=>x['@type']==='BreadcrumbList'));
+  assert.equal(graph.find(x=>x['@type']==='Product').offers.price,p.price);
+  assert((await request('/shop?q=test')).text.includes('noindex,follow'));
+  assert((await request('/admin')).text.includes('noindex,follow'));
   await request('/api/admin/summary',null,{expected:401});
   console.log('PASS catalogue and pricing match Node; unchanged assets, routes, SEO and private files');
 

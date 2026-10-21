@@ -70,7 +70,7 @@ function az_json(int $status, $data): never {
     az_flush();
     if($status<400 && isset($GLOBALS['az_lock'])) { try { az_backup(); } catch(Throwable $e) { error_log('[backup] '.$e->getMessage()); } }
     az_release();
-    http_response_code($status); header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: '.(parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)==='/api/catalog'?'no-cache':'no-store')); header('X-Content-Type-Options: nosniff');
+    http_response_code($status); header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: '.(parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)==='/api/catalog'?'no-cache':'no-store')); header('X-Content-Type-Options: nosniff'); header('X-Robots-Tag: noindex');
     echo json_encode($data,AZ_JSON);
     if(function_exists('fastcgi_finish_request')) fastcgi_finish_request();
     foreach($GLOBALS['az_after'] as $fn) { try { $fn(); } catch(Throwable $e) { error_log('[notify] '.$e->getMessage()); } }
