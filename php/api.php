@@ -46,7 +46,7 @@ function az_api(string $p,string $method,array $b): void {
 }
 function az_place_order(array $b): never {
     $c=is_array($b['customer']??null)?$b['customer']:[]; $phone=az_phone($c['phone']??null); $errors=[];
-    if(!empty($b['website'])) az_fail(400,'Something went wrong. Please try again.');
+    if(!empty($b['orderGuard'])) az_fail(400,'Something went wrong. Please try again.');
     if(strlen(az_clean($c['name']??''))<2) $errors['name']='Please enter your full name.';
     if(!$phone) $errors['phone']='Enter a valid Pakistani mobile number, e.g. 0300 1234567.';
     if(!empty($c['email'])&&!az_email($c['email'])) $errors['email']="That email doesn't look right.";

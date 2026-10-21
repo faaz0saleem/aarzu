@@ -215,7 +215,8 @@ async function api(req, res, url) {
     const b = await readBody(req);
     const c = b.customer || {};
     const phone = normPhone(c.phone);
-    if (b.website) return fail(req, res, 400, "Something went wrong. Please try again."); // honeypot: only bots fill it
+    // Legacy "website" inputs can be autofilled with a country by real browsers.
+    if (b.orderGuard) return fail(req, res, 400, "Something went wrong. Please try again.");
     const errors = {};
     if (clean(c.name).length < 2) errors.name = "Please enter your full name.";
     if (!phone) errors.phone = "Enter a valid Pakistani mobile number, e.g. 0300 1234567.";

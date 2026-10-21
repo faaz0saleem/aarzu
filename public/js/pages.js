@@ -478,7 +478,7 @@ function checkout(main, { go }) {
     <div class="co-sec" style="border:0"><h3><span class="n">3</span>Payment</h3>
       ${[["cod", "Cash on delivery", "Pay in cash when your order arrives", "Most popular"], ["bank", "Bank transfer", "Account details shown after you order", ""], ["wallet", "JazzCash / Easypaisa", "Wallet number shown after you order", ""]].map(([v, b, t, tag], i) => `<label class="pay-opt" data-pay="${v}"><input type="radio" name="payment" value="${v}" ${i ? "" : "checked"}><span><b>${b}</b><small>${t}</small></span>${tag ? `<span class="tag">${tag}</span>` : "<span></span>"}</label>`).join("")}
       <p class="cod-note" id="cod-note" hidden></p>
-      <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <div hidden inert aria-hidden="true" style="display:none"><input type="text" name="az_order_guard" tabindex="-1" autocomplete="off"></div>
       <button class="btn rani block" id="place" style="margin-top:20px;min-height:58px">${icon("lock", "", 16)} Place order</button>
       <p style="text-align:center;font-size:.8rem;color:var(--muted)">By placing your order you agree to our delivery & exchange policy.</p></div>
   </form>
@@ -520,7 +520,7 @@ function checkout(main, { go }) {
     btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Placing order…`;
     const customer = { name: f.elements.namedItem("name").value, phone: f.elements.namedItem("phone").value, email: f.elements.namedItem("email").value, city: f.elements.namedItem("city").value, address: f.elements.namedItem("address").value, notes: f.elements.namedItem("notes").value };
     try {
-      const r = await api("/api/orders", { customer, website: f.elements.namedItem("website").value, payment: f.elements.namedItem("payment").value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
+      const r = await api("/api/orders", { customer, orderGuard: f.elements.namedItem("az_order_guard")?.value || "", payment: f.elements.namedItem("payment").value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
       if (typeof r.id !== "string" || !/^AZ[A-Z0-9]+$/.test(r.id) || !Number.isFinite(r.total) || !["cod", "bank", "wallet"].includes(r.payment)) throw new Error("Your order was not confirmed. Please try again or contact us.");
       state.lastOrder = { ...r, quote: quote(), customer };
       try { localStorage.setItem("az_cust", JSON.stringify({ name: customer.name, phone: customer.phone, email: customer.email, city: customer.city, address: customer.address })); } catch {}

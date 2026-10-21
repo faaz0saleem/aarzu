@@ -68,7 +68,7 @@ async function regressionChecks(files, report = console.log) {
   function checkoutFixture(result) {
     const state = { store: { cities: [{ name: "Karachi" }], cod: {}, returnDays: 7 }, cart: [{ id: "AZ-P", size: "M", qty: 1 }], coupon: null, credits: [], lastOrder: null };
     const button = { disabled: false }, main = {}, summary = {}, note = {}, eta = {}, coupon = {};
-    const fields = Object.fromEntries(Object.entries({ name: "Test buyer", phone: "03001234567", email: "", city: "Karachi", address: "123 Test Street", notes: "", website: "", payment: "cod" }).map(([k, value]) => [k, { value }]));
+    const fields = Object.fromEntries(Object.entries({ name: "Test buyer", phone: "03001234567", email: "", city: "Karachi", address: "123 Test Street", notes: "", website: "Pakistan", az_order_guard: "", payment: "cod" }).map(([k, value]) => [k, { value }]));
     const form = { elements: { namedItem: name => fields[name] } };
     const cod = { checked: true }, label = { classList: { toggle() {} } };
     const nodes = { "#co": form, "#place": button, "#summary": summary, "#eta": eta, "#cod-note": note, "#cpn": coupon, '[data-pay="cod"] input': cod, '[data-pay="cod"]': label };
@@ -78,7 +78,7 @@ async function regressionChecks(files, report = console.log) {
     const checkout = factory({
       $: s => nodes[s] || null, $$: () => [], state, quote, icon: () => "", esc: String, rs: String, img: String,
       lineExtras: () => "", fillSlots() {}, dispatchInfo: () => ({ eta: "3 days" }),
-      localStorage: blocked, sessionStorage: blocked, api: async () => { calls++; return result(); },
+      localStorage: blocked, sessionStorage: blocked, api: async (_path, body) => { calls++; assert.equal(body.website, undefined); assert.equal(body.orderGuard, ""); return result(); },
       clearCart() { cleared++; state.cart = []; }, setCoupon() {}, setCredit() {}, toast: m => notices.push(m)
     }, checkoutCode, "checkout");
     checkout(main, { go: path => navigation.push(path) });

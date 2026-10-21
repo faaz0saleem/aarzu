@@ -71,3 +71,7 @@ Admin sign-in regression checks: `node tests/admin-login.test.mjs`, `node tests/
 ## Product cards and bag quantities
 
 Quick-add controls are positioned relative to the photo, with a separate row on touch devices and narrow screens. They remain accessible without a mouse and do not cover product titles or prices. Source photos are unchanged. Bag updates check available stock across all add-on variants of a size, so repeatedly adding a one-unit style cannot create an invalid two-unit checkout. Product-page quantities also respect stock; rejected adds do not show success or redirect to checkout. Validate with `node tests/cart-stock.test.mjs`.
+
+## Checkout autofill compatibility
+
+Upload `php/api.php` and `public/js/pages.js` together. Some browsers autofilled the former off-screen `website` spam field with a country such as “Pakistan”, causing otherwise valid orders to be rejected. PHP and Node now ignore that legacy field so open checkout tabs work after the backend update. New checkout pages use a fully hidden, inert guard with a name unrelated to address/contact autofill. Customer validation, stock checks and rate limits still apply.

@@ -75,7 +75,8 @@ try {
   const cpn=(await request('/api/coupon',{code:'PHPTEST10',phone:ac.phone})).data;
   const q=(await request('/api/quote',{items:[line],code:'PHPTEST10'})).data; delete q.couponError; assert.deepEqual(q,priceCart([line],byId,store,cpn));
   await request('/api/alerts/checkout-draft',{sid:'testsession123',name:ac.name,phone:ac.phone,city:'Lahore',items:[line],total:q.total});
-  const o=(await request('/api/orders',{customer:ac,payment:'cod',items:[line],code:'PHPTEST10'},{expected:201})).data;
+  await request('/api/orders',{customer:ac,payment:'cod',items:[line],orderGuard:'bot-filled'},{expected:400});
+  const o=(await request('/api/orders',{customer:ac,payment:'cod',items:[line],code:'PHPTEST10',website:'Pakistan',orderGuard:''},{expected:201})).data;
   assert.equal(o.total,q.total); assert.equal((await request('/api/catalog')).data.products.find(x=>x.id===p.id).stock[line.size],p.stock[line.size]-1);
   await request('/api/orders/'+o.id+'?phone=03009999999',null,{expected:404});
   const tracked=(await request('/api/orders/'+o.id+'?phone='+ac.phone)).data; assert.deepEqual(Object.keys(tracked.customer).sort(),['city','name']); assert(!('adminNote' in tracked));
