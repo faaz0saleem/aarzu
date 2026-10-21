@@ -7,6 +7,12 @@ require_once __DIR__.'/admin.php';
 require_once __DIR__.'/notifications.php';
 function az_api(string $p,string $method,array $b): void {
     if(str_starts_with($p,'/api/admin/')) az_admin();
+    if($p==='/api/admin/visitors'&&$method==='GET') {
+        az_flush(); az_release();
+        try { if(!is_file(__DIR__.'/visitors.php')) throw new RuntimeException('Visitor tracking not deployed'); require_once __DIR__.'/visitors.php'; $counts=az_visitor_summary(); }
+        catch(Throwable $e) { az_fail(503,'Visitor counts are temporarily unavailable.'); }
+        az_json(200,$counts);
+    }
     az_accounts_api($p,$method,$b); az_features_api($p,$method,$b); az_admin_api($p,$method,$b);
     if($p==='/api/catalog'&&$method==='GET') az_json(200,az_public_catalog());
     if($p==='/api/coupon'&&$method==='POST') { try { $c=az_coupon($b['code']??null,$b['phone']??null); } catch(RuntimeException $e) { az_fail(400,$e->getMessage()); } az_json(200,$c); }

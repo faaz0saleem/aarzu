@@ -5,6 +5,14 @@ require __DIR__ . '/php/bootstrap.php';
 try {
     $path = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
     if (str_contains($path, "\0") || preg_match('~(?:^|/)\.(?:\.?/|[^/])~', $path)) az_text(404, 'Not found');
+    if ($path === '/api/visitors') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') az_fail(405, 'Use POST for visitor activity.');
+        if ((int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 1024) az_fail(413, 'Payload too large');
+        $body=az_body(); $tracked=false;
+        try { if(is_file(__DIR__.'/php/visitors.php')) { require_once __DIR__.'/php/visitors.php'; $tracked=az_visitor_touch($body); } }
+        catch (Throwable $e) { error_log('[visitors] Tracking temporarily unavailable'); }
+        az_json($tracked?200:202,['ok'=>$tracked,'registered'=>$tracked]);
+    }
     if (str_starts_with($path, '/api/')) {
         az_open();
         require __DIR__ . '/php/api.php';

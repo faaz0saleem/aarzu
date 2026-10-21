@@ -1,0 +1,10 @@
+.vi-panel { margin: 0 0 24px; }
+.vi-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.vi-kpis .kpi { min-width: 0; }
+.vi-kpis small { display: block; color: var(--muted); font-size: .72rem; margin-top: 7px; line-height: 1.5; }
+.vi-dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: #087b55; }
+.vi-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 11px; font-size: .74rem; color: var(--muted); }
+.vi-meta button { color: var(--rani); text-decoration: underline; text-underline-offset: 3px; }
+.vi-panel [data-visitor-status] { font-size: .73rem; color: var(--ink-2); margin: 9px 0 6px; }
+.vi-explainer { display: block; color: var(--muted); font-size: .7rem; line-height: 1.6; max-width: 900px; }
+@media(max-width:480px) { .vi-kpis { gap: 9px; } .vi-kpis .kpi { padding: 16px 12px; } }
