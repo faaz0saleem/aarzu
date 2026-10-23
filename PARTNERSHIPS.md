@@ -26,7 +26,7 @@ The terms shown to creators and programme defaults are versioned. Existing order
 5. For a payout request, check the amount and beneficiary, then make the transfer through your banking service. **Record completed transfer** only after it succeeds, with the actual bank transaction reference. The website does not initiate bank transfers.
 6. If returns/refunds reduce the balance, recording a stale payout is blocked. Reject the request with the reason so the creator can request their corrected balance. Paid/rejected requests cannot be processed again.
 
-Target processing time communicated to creators is seven business days after review; the store operator must perform and record the transfer. No historical sales, payout claims, customer contact details, private admin figures or admin phone numbers are included in outreach.
+The store commits to paying valid requests within two working days (Monday–Friday; bank holidays may affect bank processing). The creator dashboard shows Request payout and the expected date; the admin shows due and overdue requests. The store operator must perform and record the bank transfer within this period. No historical sales, payout claims, customer contact details, private admin figures or admin phone numbers are included in outreach.
 
 ## Storage and deployment
 

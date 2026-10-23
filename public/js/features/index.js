@@ -15,4 +15,4 @@
 //   registerAdminTab({ key, label, render(el, call) })
 //   registerRouteHook(fn(url, view))    runs after every page render
 //   setCredit(key, { label, amount, payload }) apply a gift card / points credit to the bag
-export const FEATURES = ["quickview", "stitching", "giftcards", "account", "policies", "analytics", "guides", "alerts", "adminpro", "pwa", "outfit-preview", "visitors", "partnerships"];
+export const FEATURES = ["quickview", "stitching", "giftcards", "account", "policies", "analytics", "guides", "alerts", "adminpro", "pwa", "outfit-preview", "visitors", "partnerships", "admin-design"];

@@ -642,7 +642,7 @@ function admin(main) {
   let pw = state.adminPassword || (() => { try { return sessionStorage.getItem("az_admin") || ""; } catch { return ""; } })();
   const call = (path, body, method) => api(path, body, method, { Authorization: `Bearer ${pw}`, "X-Aarzu-Admin": pw });
   const login = () => {
-    main.innerHTML = `<section class="wrap admin" style="max-width:440px"><form id="lf" class="card-box" style="display:grid;gap:14px;margin-top:60px"><h2>Aarzu Admin</h2><div class="field"><label>Password</label><input type="password" name="pw" autofocus></div><button class="btn rani">Sign in</button></form></section>`;
+    main.innerHTML = `<section class="admin ad-login"><div class="ad-login-art"><a class="ad-brand" href="https://aarzu.store"><span class="ad-monogram">A</span><span><strong>aarzu</strong><small>Store workspace</small></span></a><h1>A little care.<br>A beautiful<br>business.</h1><p>Your orders, customers and creator partnerships, together in one workspace.</p></div><div class="ad-login-form"><form id="lf"><span class="ad-overline">Your store, at a glance</span><h2>Aarzu Admin</h2><p>Welcome back. Sign in to manage your store.</p><div class="field"><label for="admin-password">Admin password</label><input id="admin-password" type="password" name="pw" required autocomplete="current-password" autofocus></div><button class="btn rani">Sign in to dashboard</button><a class="ad-login-back" href="https://aarzu.store">← Back to the store</a></form></div></section>`;
     $("#lf", main).onsubmit = async (e) => {
       e.preventDefault();
       const form = e.currentTarget || e.target, button = form.querySelector("button");
@@ -662,29 +662,46 @@ function admin(main) {
     const s = await call("/api/admin/summary");
     const extTab = ext.adminTabs.find((t) => t.key === tab);
     const body = extTab ? null : tab === "orders" ? await call("/api/admin/orders") : tab === "stock" ? await call("/api/admin/catalog") : await call(`/api/admin/${tab}`);
-    main.innerHTML = `<section class="wrap admin"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px"><h1 style="font-size:2.6rem">Dashboard</h1><button class="btn ghost sm" id="out">Sign out</button></div>
-      <div class="kpis">${[["Revenue", rs(s.revenue)], ["Orders", s.orders], ["To process", s.pending], ["Waitlist (West)", s.waitlist], ["Subscribers", s.newsletter]].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
-      <div class="tabs">${["orders", "stock", "waitlist", "newsletter", "leads", "messages"].map((t) => `<button data-tab="${t}" class="${t === tab ? "on" : ""}">${t}</button>`).join("")}${ext.adminTabs.map((t) => `<button data-tab="${esc(t.key)}" class="${t.key === tab ? "on" : ""}">${esc(t.label)}</button>`).join("")}</div>
+    const names = {orders:"Orders",stock:"Inventory",waitlist:"Western waitlist",newsletter:"Subscribers",leads:"Offer leads",messages:"Messages"};
+    const tabs = [...Object.entries(names).map(([key,label])=>({key,label})),...ext.adminTabs];
+    const title = tabs.find(t=>t.key===tab)?.label || tab;
+    const groups = [["Workspace",["insights","orders","stock","partnerships"]],["Fulfilment",["customers","stitching","giftcards","restock","abandoned","exports"]],["Audience",["coupons","messages","newsletter","waitlist","leads"]]];
+    const known = new Set(groups.flatMap(([,keys])=>keys));
+    const extras = tabs.filter(t=>!known.has(t.key)); if(extras.length)groups.push(["More",extras.map(t=>t.key)]);
+    main.innerHTML = `<section class="admin ad-shell"><aside class="ad-sidebar"><a class="ad-brand" href="https://aarzu.store" target="_blank" rel="noopener"><span class="ad-monogram">A</span><span><strong>aarzu</strong><small>Store workspace</small></span></a><nav aria-label="Admin sections">${groups.map(([label,keys])=>`<div class="ad-nav-group"><span>${label}</span>${keys.map(key=>tabs.find(t=>t.key===key)).filter(Boolean).map(t=>`<button type="button" data-tab="${esc(t.key)}" class="${t.key===tab?'on':''}" ${t.key===tab?'aria-current="page"':''}><span aria-hidden="true">${t.key==='partnerships'?'◈':t.key==='orders'?'▤':t.key==='stock'?'▦':'○'}</span>${esc(t.label)}</button>`).join('')}</div>`).join('')}</nav><div class="ad-sidebar-foot">Made with care, managed by you.<a href="https://aarzu.store" target="_blank" rel="noopener">Visit your store ↗</a></div></aside><div class="ad-main"><header class="ad-topbar"><div><small>Aarzu / Dashboard</small><strong>${esc(title)}</strong></div><div><button class="btn ghost sm ad-mobile-menu" data-admin-menu aria-expanded="false">Menu</button><button class="btn ghost sm" data-admin-refresh>Refresh</button><span class="ad-avatar" aria-hidden="true">A</span><button class="azp-text-link" id="out">Sign out</button></div></header><div class="ad-content"><div class="ad-page-head"><div><span class="ad-overline">Store overview</span><h1>${esc(title)}</h1><p>${tab==='orders'?'Review new orders, arrange delivery and keep customers updated.':tab==='partnerships'?'Review creators, confirm eligible earnings and manage bank payouts.':tab==='stock'?'Keep your collection and available quantities up to date.':'Manage this part of your store in one place.'}</p></div></div>
+      <div class="kpis">${[["Order value", rs(s.revenue)], ["Total orders", s.orders], ["To process", s.pending], ["Western waitlist", s.waitlist], ["Subscribers", s.newsletter]].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("")}</div><div class="ad-panel">
       ${extTab ? `<div id="ext-tab"></div>` : ""}
-      ${extTab ? "" : tab === "orders" ? adminOrders(body)
+      ${extTab ? "" : tab === "orders" ? `<div class="ad-toolbar"><label>Search orders<input data-order-search type="search" placeholder="Order, name, phone or city"></label><label>Order status<select data-order-filter><option value="">All statuses</option>${['placed','confirmed','dispatched','delivered','cancelled','returned'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></label><small data-order-count>${body.length} orders</small></div>${adminOrders(body)}<p data-order-empty hidden>No orders match your search.</p>`
       : tab === "stock" ? adminStock(body)
-      : `<table><tr><th>Contact / name</th><th>Details</th><th>Date</th></tr>${body.map((r) => `<tr><td>${esc(r.contact || r.name || "")}${r.email ? `<br><small>${esc(r.email)}</small>` : ""}</td><td>${esc(r.message || r.prize || r.interest || "")}</td><td>${new Date(r.at).toLocaleString("en-GB")}</td></tr>`).join("") || `<tr><td colspan="3">Nothing yet.</td></tr>`}</table>`}</section>`;
+      : `<table><tr><th>Contact / name</th><th>Details</th><th>Date</th></tr>${body.map((r) => `<tr><td>${esc(r.contact || r.name || "")}${r.email ? `<br><small>${esc(r.email)}</small>` : ""}</td><td>${esc(r.message || r.prize || r.interest || "")}</td><td>${new Date(r.at).toLocaleString("en-GB")}</td></tr>`).join("") || `<tr><td colspan="3">Nothing yet.</td></tr>`}</table>`}</div></div></div></section>`;
     if (extTab) try { await extTab.render($("#ext-tab", main), call); } catch (e) { $("#ext-tab", main).textContent = e.message; }
-    main.onclick = async (e) => {
+    const filterOrders = () => {
+      const query=($("[data-order-search]",main)?.value||'').trim().toLowerCase(),status=$("[data-order-filter]",main)?.value||'';
+      let count=0;main.querySelectorAll('[data-order]').forEach(row=>{row.hidden=!!(query&&!row.textContent.toLowerCase().includes(query)||status&&row.dataset.orderStatus!==status);if(!row.hidden)count++;});
+      const counter=$("[data-order-count]",main),empty=$("[data-order-empty]",main);if(counter)counter.textContent=`${count} matching order${count===1?'':'s'}`;if(empty)empty.hidden=count>0;
+    };
+    main.oninput = e => {if(e.target.matches('[data-order-search]'))filterOrders();};
+    main.onclick = async (e) => { try {
       const ship = e.target.closest("[data-ship]");
       if (ship) {
+        if(ship.disabled)return;ship.disabled=true;
         const row = ship.closest("[data-order]");
-        await call(`/api/admin/orders/${ship.dataset.ship}`, { courier: $("[data-courier]", row).value, tracking: $("[data-tracking]", row).value }, "PATCH");
+        try { await call(`/api/admin/orders/${ship.dataset.ship}`, { courier: $("[data-courier]", row).value, tracking: $("[data-tracking]", row).value }, "PATCH"); } finally {ship.disabled=false;}
         toast("Courier & tracking saved");
-        return dash("orders");
+        return await dash("orders");
       }
-      const t = e.target.closest("[data-tab]"); if (t) dash(t.dataset.tab); if (e.target.closest("#out")) { pw = ""; state.adminPassword = ""; try { sessionStorage.removeItem("az_admin"); } catch {} login(); } };
-    main.onchange = async (e) => {
+      const menu=e.target.closest('[data-admin-menu]');if(menu){const shell=main.querySelector('.ad-shell');shell.classList.toggle('ad-nav-open');menu.setAttribute('aria-expanded',shell.classList.contains('ad-nav-open'));return;}
+      const t = e.target.closest("[data-tab]"); if (t) await dash(t.dataset.tab);
+      if(e.target.closest('[data-admin-refresh]'))await dash(tab);
+      if (e.target.closest("#out")) { pw = ""; state.adminPassword = ""; try { sessionStorage.removeItem("az_admin"); } catch {} login(); }
+    } catch(err) {toast(esc(err.message||'Could not save. Please try again.'),{icon:'x',ms:8000});} };
+    main.onchange = async (e) => { try {
+      if(e.target.matches('[data-order-filter]')){filterOrders();return;}
       const st = e.target.closest("[data-st]");
-      if (st) { await call(`/api/admin/orders/${st.dataset.st}`, { status: st.value }, "PATCH"); toast(`Order ${esc(st.dataset.st)} → ${st.value}`); dash("orders"); }
+      if (st) { st.disabled=true;try{await call(`/api/admin/orders/${st.dataset.st}`, { status: st.value }, "PATCH");toast(`Order ${esc(st.dataset.st)} → ${st.value}`);await dash("orders");}finally{st.disabled=false;} }
       const sk = e.target.closest("[data-stock]");
       if (sk) { const [id, size] = sk.dataset.stock.split("|"); const saved = await call("/api/admin/stock", { id, size, qty: Number(sk.value) }); if (state.byId[id]) state.byId[id].stock = saved.stock; toast("Stock updated"); await dash("stock"); }
-    };
+    } catch(err) {toast(esc(err.message||'Could not save. Please try again.'),{icon:'x',ms:8000});} };
   };
   pw ? dash().catch((err) => { login(); if (err.status !== 401) toast(esc(err.message || "Could not open the admin."), { icon: "x", ms: 8000 }); }) : login();
 }
@@ -717,7 +734,7 @@ function adminOrders(orders) {
     const risk = refused ? `<span class="status cancelled">⚠ Refused ${refused} before</span>` : delivered ? `<span class="status delivered">★ ${delivered} delivered before</span>` : others.length ? `<span class="status confirmed">${others.length} earlier order${others.length > 1 ? "s" : ""}</span>` : `<span class="status">First order</span>`;
     const confirmMsg = `Assalam o Alaikum ${first(o)}! This is ${s.name}. Please reply YES to confirm your order ${o.id} of ${rs(o.total)}${o.payment === "cod" ? " (cash on delivery)" : ""}, delivering to ${o.customer.address}, ${o.customer.city}. Shukriya!`;
     const shipMsg = `Good news ${first(o)}! Your ${s.name} order ${o.id} has been dispatched${o.courier ? ` with ${o.courier}` : ""}${o.tracking ? `, tracking number ${o.tracking}` : ""}.${o.payment === "cod" ? ` Please keep ${rs(o.total)} ready for the rider.` : ""} Track: ${location.origin}/track?id=${o.id}`;
-    return `<article class="ao" data-order="${esc(o.id)}">
+    return `<article class="ao" data-order="${esc(o.id)}" data-order-status="${esc(o.status)}">
       <header><b>${esc(o.id)}</b><small>${new Date(o.createdAt).toLocaleString("en-GB")}</small><span class="status ${o.status}">${o.status}</span>${risk}<span class="ao-total">${rs(o.total)} · ${esc(o.payment)}${o.coupon ? ` · ${esc(o.coupon)}` : ""}</span></header>
       <div class="ao-body">
         <div><b>${esc(o.customer.name)}</b><br><a href="tel:+${esc(o.customer.phone)}">+${esc(o.customer.phone)}</a>${o.customer.email ? ` · ${esc(o.customer.email)}` : ""}<br><small>${esc(o.customer.address)}, ${esc(o.customer.city)}</small>${o.customer.notes ? `<br><small><i>${esc(o.customer.notes)}</i></small>` : ""}</div>

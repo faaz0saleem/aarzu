@@ -5,6 +5,6 @@
   "minimumPayout": 5000,
   "holdDays": 14,
   "attributionDays": 30,
-  "payoutBusinessDays": 7,
+  "payoutBusinessDays": 2,
   "currency": "PKR"
 }
