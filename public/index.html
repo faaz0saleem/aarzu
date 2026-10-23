@@ -25,7 +25,12 @@
   <link rel="preload" href="/brand/aarzu-mark.svg" as="image">
   <link rel="preload" href="/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/jost-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    // Choose the workspace before the first paint, including signed-out pages.
+    document.documentElement.dataset.workspace = /^admin\./i.test(location.hostname) || /^\/admin(?:\/|$)/.test(location.pathname) ? 'admin' : /^\/(?:partnerships|promotions)\/?$/.test(location.pathname) ? 'creators' : '';
+  </script>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/workspace.css">
   <link rel="modulepreload" href="/js/app.js">
   <link rel="modulepreload" href="/js/core.js">
   <link rel="modulepreload" href="/js/pages.js">

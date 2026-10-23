@@ -274,6 +274,7 @@ export function go(href, replace) {
 // Each page renders into a fresh view element so listeners never pile up on #main.
 async function render({ replace = false } = {}) {
   const url = new URL(location.href);
+  document.documentElement.dataset.workspace = /^admin\./i.test(url.hostname) || /^\/admin(?:\/|$)/.test(url.pathname) ? 'admin' : /^\/(?:partnerships|promotions)\/?$/.test(url.pathname) ? 'creators' : '';
   cleanup?.();
   cleanup = null;
   closeOverlay();
@@ -312,7 +313,7 @@ addEventListener("popstate", () => render());
 function wheelPrompt() {
   let shown = false;
   const seen = () => { try { return shown || localStorage.getItem("az_spun") || sessionStorage.getItem("az_wheel_seen"); } catch { return shown; } };
-  const show = () => { if (seen() || /checkout|order|admin/.test(location.pathname) || $(".modal, .drawer")) return; shown = true; try { sessionStorage.setItem("az_wheel_seen", "1"); } catch {} openWheel(); };
+  const show = () => { if (seen() || document.documentElement.dataset.workspace || /checkout|order|admin/.test(location.pathname) || $(".modal, .drawer")) return; shown = true; try { sessionStorage.setItem("az_wheel_seen", "1"); } catch {} openWheel(); };
   setTimeout(show, 15000);
   document.addEventListener("mouseout", (e) => { if (!e.relatedTarget && e.clientY < 8) show(); });
 }

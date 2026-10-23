@@ -6,7 +6,7 @@ import { icon, toast, registerLink, registerRouteHook, ext, closeOverlay } from 
 const KEY = "az_pwa"; // { visits, dismissed } in localStorage
 const DISMISS_DAYS = 30;
 const APP_HREF = "/get-app"; // the menu link; clicks are caught below, so it is never a real page
-const QUIET = /^\/(checkout|order|admin|product)/; // no banner while buying or on product pages
+const QUIET = /^\/(checkout|order|admin|product|partnerships|promotions)/; // no banner while buying or on product pages
 
 const ua = navigator.userAgent;
 const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);

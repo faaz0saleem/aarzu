@@ -6,6 +6,7 @@ require_once __DIR__.'/features.php';
 require_once __DIR__.'/admin.php';
 require_once __DIR__.'/notifications.php';
 if(is_file(__DIR__.'/partnerships.php')) require_once __DIR__.'/partnerships.php';
+if(is_file(__DIR__.'/marketing.php')) require_once __DIR__.'/marketing.php';
 function az_api(string $p,string $method,array $b): void {
     if(str_starts_with($p,'/api/admin/')) az_admin();
     if($p==='/api/admin/visitors'&&$method==='GET') {
@@ -14,6 +15,7 @@ function az_api(string $p,string $method,array $b): void {
         catch(Throwable $e) { az_fail(503,'Visitor counts are temporarily unavailable.'); }
         az_json(200,$counts);
     }
+    if($p==='/api/admin/marketing'&&$method==='GET'&&function_exists('az_marketing_report')) { $days=(int)($_GET['days']??30); az_json(200,az_marketing_report(az_db('orders'),in_array($days,[7,30,90],true)?$days:30)); }
     if(function_exists('az_partners_api')) az_partners_api($p,$method,$b);
     az_accounts_api($p,$method,$b); az_features_api($p,$method,$b); az_admin_api($p,$method,$b);
     if($p==='/api/catalog'&&$method==='GET') az_json(200,az_public_catalog());
@@ -33,7 +35,7 @@ function az_api(string $p,string $method,array $b): void {
     if(preg_match('~^/api/orders/([A-Z0-9]+)$~',$p,$m)&&$method==='GET') {
         $o=az_find(az_db('orders'),fn($o)=>$o['id']===$m[1]); $phone=az_phone($_GET['phone']??null);
         if(!$o||!$phone||$o['customer']['phone']!==$phone) az_fail(404,"We couldn't find an order with that number and phone.");
-        unset($o['adminNote'],$o['partner']); $o['customer']=array_intersect_key($o['customer'],array_flip(['name','city'])); $courier=az_find(az_store()['couriers']??[],fn($c)=>$c['name']===($o['courier']??null)); $o['trackUrl']=isset($courier['track'])?str_replace('{cn}',rawurlencode($o['tracking']??''),$courier['track']):null; az_json(200,$o);
+        unset($o['adminNote'],$o['partner'],$o['marketing']); $o['customer']=array_intersect_key($o['customer'],array_flip(['name','city'])); $courier=az_find(az_store()['couriers']??[],fn($c)=>$c['name']===($o['courier']??null)); $o['trackUrl']=isset($courier['track'])?str_replace('{cn}',rawurlencode($o['tracking']??''),$courier['track']):null; az_json(200,$o);
     }
     if($p==='/api/activity'&&$method==='GET') {
         $orders=array_reverse(array_slice(array_values(array_filter(az_db('orders'),fn($o)=>az_time($o['createdAt'])>time()-259200&&$o['status']!=='cancelled')),-12)); $products=az_catalog();
@@ -79,6 +81,7 @@ function az_place_order(array $b): never {
     $o=['id'=>'AZ'.strtoupper(substr(base_convert((string)(int)(microtime(true)*1000),10,36),-6)).random_int(10,99),'createdAt'=>az_now(),'status'=>'placed','history'=>[['status'=>'placed','at'=>az_now()]],'payment'=>$b['payment'],'customer'=>['name'=>az_clean($c['name'],80),'phone'=>$phone,'email'=>az_clean($c['email']??'',120),'city'=>az_clean($c['city'],60),'address'=>az_clean($c['address'],500),'notes'=>az_clean($c['notes']??'',500)],'items'=>array_map(fn($i)=>array_intersect_key($i,array_flip(['id','title','image','size','qty','unit','line','addons','meta'])),$q['items'])];
     foreach(['subtotal','discounts','shipping','credits','total','coupon'] as $k) $o[$k]=$q[$k];
     if(function_exists('az_partner_attach')) az_partner_attach($o);
+    if(function_exists('az_marketing_clean')) { $labels=az_marketing_clean($b['marketing']??null); if($labels) $o['marketing']=$labels; }
     az_push('orders',$o); az_order_created($o,$credits);
     $GLOBALS['az_after'][]=fn()=>az_notify($o,'placed');
     az_json(201,array_intersect_key($o,array_flip(['id','total','payment'])));

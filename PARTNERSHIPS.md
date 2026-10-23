@@ -43,3 +43,17 @@ The optional PHP module is guarded during deployment so the main storefront can 
 Run `node tests/partnerships.test.mjs` for the actual Node HTTP contract. Run with `PARTNER_TEST_ENGINE=php` and the existing `PHP_WASM_MODULES` setting for the PHP contract. It covers consent, activation, ownership, link/code discounts, original cookie expiry, self-referrals, commission snapshots, holds, payment collection, refunds, payout reservations, stale balances, duplicate decisions, masked bank data and persistence.
 
 The existing PHP compatibility, checkout/wheel/catalogue regression and SEO checks also cover this release. All test bank accounts and transfers are isolated fixtures. No live bank transfer is made by tests.
+
+## Workspace and marketing tools
+
+Admin and creator pages use a separate workspace layout, including before sign-in. The shopping navigation, offer wheel, floating store promotions and app-install banner are hidden there. The creator programme also opens at `/promotions` (excluded from indexing to avoid a duplicate search listing).
+
+The admin **Marketing** tab builds links to actual in-stock products or the collection, with bounded source, medium, campaign and optional creative labels. It provides editable copy, a WhatsApp share link and downloadable campaign reports. These controls do not publish messages or start paid advertising.
+
+Campaign links use standard `utm_*` parameters. The most recent valid tagged link is remembered in the shopper's browser for 30 days; direct visits do not renew it. On checkout, only the allowed campaign labels are saved with an order, without changing pricing or financial creator attribution. Missing, malformed or blocked browser storage does not prevent checkout. Do not put personal information in labels.
+
+The protected `/api/admin/marketing?days=7|30|90` report groups new orders by campaign. Cancelled/returned orders are excluded from active and delivered value. Values include delivery/add-ons and must not be described as collected cash, profit or eligible creator sales. Historical orders without labels are reported separately, with no invented attribution. Public order tracking omits campaign metadata. Node and PHP follow the same validation, period and grouping rules.
+
+Creator resources include tagged referral links and an editable caption with affiliate disclosure. The public earnings calculator is illustrative, accounts for the viewer discount, and makes no earnings guarantee. The admin creator review list supports search and status filters.
+
+Run `node tests/marketing.test.mjs` for label/link validation, storage expiry, reporting and initial workspace selection. The Node/PHP partnership contract also exercises actual attributed checkout, ignored invalid labels, private reporting and reversals.

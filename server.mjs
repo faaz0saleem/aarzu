@@ -262,7 +262,7 @@ async function api(req, res, url) {
       total: quote.total,
       coupon: quote.coupon,
     };
-    for (const m of modules) if (m.decorateOrder) m.decorateOrder(order, ctx, req);
+    for (const m of modules) if (m.decorateOrder) m.decorateOrder(order, ctx, req, b);
     for (const [k, qty] of Object.entries(need)) {
       const [id, size] = k.split("|");
       setStock(id, size, catalog.stockOf(catalog.byId[id])[size] - qty);
@@ -282,7 +282,7 @@ async function api(req, res, url) {
     const phone = normPhone(url.searchParams.get("phone"));
     const o = db.get("orders", []).find((x) => x.id === track[1]);
     if (!o || o.customer.phone !== phone) return fail(req, res, 404, "We couldn't find an order with that number and phone.");
-    const { customer, adminNote, partner, ...rest } = o;
+    const { customer, adminNote, partner, marketing, ...rest } = o;
     const courier = (store().couriers || []).find((x) => x.name === o.courier);
     return json(req, res, 200, { ...rest, trackUrl: courier?.track ? courier.track.replace("{cn}", encodeURIComponent(o.tracking || "")) : null, customer: { name: customer.name, city: customer.city } });
   }

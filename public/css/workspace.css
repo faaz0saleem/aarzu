@@ -1,0 +1,5 @@
+/* Applied before the application boots, including on the sign-in screens. */
+html[data-workspace="admin"] body,html[data-workspace="creators"] body{background:#f5f4f7}
+html[data-workspace="admin"] :is(#announce,#header,#footer,.fab,.social-proof,.mobile-bar,.pwa-banner),html[data-workspace="creators"] :is(#announce,#header,#footer,.fab,.social-proof,.mobile-bar,.pwa-banner){display:none!important}
+html[data-workspace="admin"] #main,html[data-workspace="creators"] #main{min-height:100vh;padding:0}
+html[data-workspace="admin"] .admin{max-width:none;padding:0;margin:0;width:100%}

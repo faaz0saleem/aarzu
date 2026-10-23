@@ -45,7 +45,7 @@ const asAdmin=(p,b,opt={})=>req(admin,p,b,{auth:true,...opt});
 const orderBody=(n,extra={})=>({customer:{name:'Fixture Buyer '+n,phone:'0301'+String(2000000+n),email:`fixture-buyer-${n}@example.test`,city:'Lahore',address:'12 Isolated Test Street, Lahore'},payment:'cod',items:[{id:product.id,size:product.sizes[0],qty:1}],...extra});
 try{
   const program=(await req(viewer,'/api/partners/program')).data;assert.equal(program.commissionPercent,40);assert.equal(program.viewerDiscountPercent,10);assert.equal(program.minimumPayout,5000);
-  await req(viewer,'/api/partners/me',null,{expected:401});await req(viewer,'/api/admin/partners',null,{expected:401});
+  await req(viewer,'/api/partners/me',null,{expected:401});await req(viewer,'/api/admin/marketing',null,{expected:401});await req(viewer,'/api/admin/partners',null,{expected:401});
   await req(creator,'/api/account/register',{name:'Fixture Creator',phone:'03001234561',email:'creator@example.test',password:'fixture-creator-long-password'},{expected:201});
   await req(creator,'/api/partners/join',{channel:'https://www.youtube.com/@FixtureCreator',acceptTerms:false},{expected:422});
   await req(creator,'/api/partners/join',{channel:'https://attacker.example/@channel',acceptTerms:true},{expected:422});
@@ -61,9 +61,9 @@ try{
   d=(await req(creator,'/api/partners/me')).data;assert.equal(d.totals.visits,1);
   const quote=(await req(viewer,'/api/quote',{items:[{id:product.id,size:product.sizes[0],qty:1}]})).data;assert.equal(quote.coupon,code);assert.equal(quote.discounts.find(x=>x.key==='coupon').amount,Math.round(product.price*.1));
   const ids=[];
-  for(let i=0;i<5;i++){const placed=(await req(viewer,'/api/orders',orderBody(i),{expected:201})).data;ids.push(placed.id);}
-  let all=(await asAdmin('/api/admin/orders')).data;const first=all.find(o=>o.id===ids[0]);const commission=Math.round((product.price-Math.round(product.price*.1))*.4);assert.equal(first.partner.commission,commission);assert.equal(first.partner.rate,40);assert.equal(first.partner.base,product.price-Math.round(product.price*.1));
-  const tracked=(await req(viewer,`/api/orders/${ids[0]}?phone=${orderBody(0).customer.phone}`)).data;assert(!('partner' in tracked),'tracking must not expose commission snapshots');
+  for(let i=0;i<5;i++){const placed=(await req(viewer,'/api/orders',orderBody(i,{marketing:i===0?{source:'YouTube',medium:'Creator',campaign:'Autumn launch',content:'video-01',customer:'DO_NOT_STORE',total:1}:i===1?{source:'<script>',medium:'creator',campaign:'bad'}:undefined}),{expected:201})).data;ids.push(placed.id);}
+  let all=(await asAdmin('/api/admin/orders')).data;const first=all.find(o=>o.id===ids[0]);assert.deepEqual(first.marketing,{source:'youtube',medium:'creator',campaign:'autumn-launch',content:'video-01'});assert(!all.find(o=>o.id===ids[1]).marketing);const campaigns=(await asAdmin('/api/admin/marketing?days=7')).data;assert.equal(campaigns.campaigns[0].orders,1);assert.equal(campaigns.campaigns[0].delivered,0);assert.equal(campaigns.untaggedOrders,4);assert.equal(campaigns.campaigns[0].orderValue,first.total);const commission=Math.round((product.price-Math.round(product.price*.1))*.4);assert.equal(first.partner.commission,commission);assert.equal(first.partner.rate,40);assert.equal(first.partner.base,product.price-Math.round(product.price*.1));
+  const tracked=(await req(viewer,`/api/orders/${ids[0]}?phone=${orderBody(0).customer.phone}`)).data;assert(!('marketing' in tracked),'tracking must not expose campaign metadata');assert(!('partner' in tracked),'tracking must not expose commission snapshots');
   await req(other,'/api/account/register',{name:'Other Fixture',phone:'03001234562',email:'other@example.test',password:'another-long-fixture-password'},{expected:201});
   const privateOther=(await req(other,'/api/partners/me')).data;assert.equal(privateOther.partner,null);assert(!JSON.stringify(privateOther).includes(id));
   const self=(await req(creator,'/api/orders',{...orderBody(20),customer:{...orderBody(20).customer,phone:'03001234561'},code},{expected:201})).data;
@@ -71,7 +71,7 @@ try{
   const direct=client(),manual=(await req(direct,'/api/orders',orderBody(21,{partnerCode:code,partner:{commission:999999}}),{expected:201})).data;
   assert.equal((await asAdmin('/api/admin/orders')).data.find(o=>o.id===manual.id).partner.commission,commission);
   for(const orderId of ids){await asAdmin(`/api/admin/orders/${orderId}`,{status:'delivered'},{method:'PATCH'});await asAdmin(`/api/admin/partners/orders/${orderId}/payment`,{reference:'Fixture collection '+orderId,confirmReceived:true,refunded:0});}
-  d=(await req(creator,'/api/partners/me')).data;assert.equal(d.totals.available,0);assert.equal(d.entries.filter(e=>e.state==='holding').length,5);await req(creator,'/api/partners/payouts',{},{expected:422});
+  assert.equal((await asAdmin('/api/admin/marketing')).data.campaigns[0].deliveredValue,first.total);d=(await req(creator,'/api/partners/me')).data;assert.equal(d.totals.available,0);assert.equal(d.entries.filter(e=>e.state==='holding').length,5);await req(creator,'/api/partners/payouts',{},{expected:422});
   // Advance only isolated stored delivery dates, then restart Node to verify persistence too.
   await shutdown();
   const orderFile=path.join(runtime,'orders.json'),aged=JSON.parse(fs.readFileSync(orderFile));for(const o of aged)if(ids.includes(o.id))o.history=o.history.map(h=>h.status==='delivered'?{...h,at:new Date(Date.now()-15*86400000).toISOString()}:h);fs.writeFileSync(orderFile,JSON.stringify(aged));
@@ -90,7 +90,7 @@ try{
   await asAdmin(`/api/admin/partners/payouts/${payout}`,{status:'paid',reference:'Fixture bank receipt',confirmTransferred:true},{method:'PATCH'});
   await asAdmin(`/api/admin/partners/payouts/${payout}`,{status:'paid',reference:'Duplicate',confirmTransferred:true},{method:'PATCH',expected:409});
   d=(await req(creator,'/api/partners/me')).data;assert.equal(d.totals.paid,commission*4);assert.equal(d.totals.available,0);assert(!JSON.stringify(d).includes(orderBody(0).customer.phone));assert(!JSON.stringify(d).includes('Fixture Buyer'));
-  await asAdmin(`/api/admin/orders/${ids[1]}`,{status:'returned'},{method:'PATCH'});d=(await req(creator,'/api/partners/me')).data;assert.equal(d.totals.adjustment,commission);
+  await asAdmin(`/api/admin/orders/${ids[1]}`,{status:'returned'},{method:'PATCH'});d=(await req(creator,'/api/partners/me')).data;assert.equal(d.totals.adjustment,commission);const reversedCampaign=(await asAdmin('/api/admin/marketing')).data.campaigns[0];assert.equal(reversedCampaign.cancelled,1);assert.equal(reversedCampaign.orderValue,0);assert.equal(reversedCampaign.deliveredValue,0);
   await asAdmin(`/api/admin/partners/orders/${ids[2]}/payment`,{reference:'Fixture partial refund',confirmReceived:true,refunded:1000});d=(await req(creator,'/api/partners/me')).data;assert.equal(d.entries.find(e=>e.orderId===ids[2]).commission,Math.round((first.partner.base-1000)*.4));
   await asAdmin(`/api/admin/partners/${id}/status`,{status:'paused',note:'Fixture review'},{method:'PATCH'});assert.equal((await req(viewer,'/api/partners/referral')).data.coupon,null);await req(viewer,'/api/coupon',{code},{expected:400});
   await asAdmin('/api/admin/coupons',{code:'AZPRESERVED',type:'percent',value:10},{expected:422});
