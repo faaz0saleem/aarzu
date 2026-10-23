@@ -1,5 +1,5 @@
 // Page renderers. Each takes (main, ctx) and may return a cleanup function.
-import { $, $$, esc, rs, img, icon, api, state, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, cartRoom, flyToCart, pushRecent, quote, clearCart, setCoupon, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish, ext, listed, lineExtras, fillSlots, setCredit } from "./core.js";
+import { $, $$, esc, rs, img, icon, api, state, on, card, skeletons, stars, toast, openOverlay, reveal, splitWords, petals, countdown, dispatchInfo, addToCart, cartRoom, flyToCart, pushRecent, quote, clearCart, setCoupon, confetti, stockLeft, typeLabel, colorCss, sid, toggleWish, ext, listed, lineExtras, fillSlots, setCredit } from "./core.js";
 
 const P = () => listed();
 const withImg = (f = () => true) => P().filter((p) => p.images?.length && f(p));
@@ -520,7 +520,7 @@ function checkout(main, { go }) {
     btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Placing order…`;
     const customer = { name: f.elements.namedItem("name").value, phone: f.elements.namedItem("phone").value, email: f.elements.namedItem("email").value, city: f.elements.namedItem("city").value, address: f.elements.namedItem("address").value, notes: f.elements.namedItem("notes").value };
     try {
-      const r = await api("/api/orders", { customer, orderGuard: f.elements.namedItem("az_order_guard")?.value || "", payment: f.elements.namedItem("payment").value, items: state.cart, code: state.coupon?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
+      const r = await api("/api/orders", { customer, orderGuard: f.elements.namedItem("az_order_guard")?.value || "", payment: f.elements.namedItem("payment").value, items: state.cart, code: state.coupon?.code, partnerCode: state.partnerRef?.code, credits: state.credits.map((c) => ({ key: c.key, payload: c.payload })) });
       if (typeof r.id !== "string" || !/^AZ[A-Z0-9]+$/.test(r.id) || !Number.isFinite(r.total) || !["cod", "bank", "wallet"].includes(r.payment)) throw new Error("Your order was not confirmed. Please try again or contact us.");
       state.lastOrder = { ...r, quote: quote(), customer };
       try { localStorage.setItem("az_cust", JSON.stringify({ name: customer.name, phone: customer.phone, email: customer.email, city: customer.city, address: customer.address })); } catch {}
@@ -549,6 +549,7 @@ function checkout(main, { go }) {
       btn.disabled = false; sum();
     }
   };
+  return on((what) => { if (what === "partner-discount") sum(); });
 }
 
 function success(main, { params }) {

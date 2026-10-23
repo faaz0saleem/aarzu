@@ -1,0 +1,10 @@
+{
+  "version": "2026-10-23",
+  "commissionPercent": 40,
+  "viewerDiscountPercent": 10,
+  "minimumPayout": 5000,
+  "holdDays": 14,
+  "attributionDays": 30,
+  "payoutBusinessDays": 7,
+  "currency": "PKR"
+}

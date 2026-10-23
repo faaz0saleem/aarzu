@@ -141,7 +141,8 @@ function setStock(id, size, qty) {
   for (const m of modules) if (m.onStock) try { m.onStock(id, size, qty, prev, ctx); } catch (e) { console.warn(`[${m.name}] onStock: ${e.message}`); }
 }
 
-function resolveCoupon(code, phone) {
+function resolveCoupon(code, phone, req = null) {
+  if (!code && req) for (const m of modules) if (m.referralCoupon) code ||= m.referralCoupon(req, ctx);
   if (!code) return { coupon: null };
   let c = store().coupons[String(code).toUpperCase().trim()];
   if (!c) for (const m of modules) if (!c && m.resolveCoupon) try { c = m.resolveCoupon(String(code).toUpperCase().trim(), ctx); } catch {}
@@ -190,13 +191,13 @@ async function api(req, res, url) {
 
   if (p === "/api/coupon" && M === "POST") {
     const b = await readBody(req);
-    const r = resolveCoupon(b.code, b.phone);
+    const r = resolveCoupon(b.code, b.phone, req);
     return r.error ? fail(req, res, 400, r.error) : json(req, res, 200, r.coupon);
   }
 
   if (p === "/api/quote" && M === "POST") {
     const b = await readBody(req);
-    const r = resolveCoupon(b.code, b.phone);
+    const r = resolveCoupon(b.code, b.phone, req);
     let credits = [];
     try { credits = await collectCredits(b, req); } catch (e) { return fail(req, res, 422, e.message); }
     return json(req, res, 200, { ...priceCart(b.items || [], catalog.byId, store(), r.coupon, { credits }), couponError: r.error || null });
@@ -229,7 +230,7 @@ async function api(req, res, url) {
     // Flood protection (counted only for complete orders; mobile networks share IPs, so the IP limit is generous)
     if (limited(`ip:${clientIp(req)}`, 30, 3600e3) || limited(`ph:${phone}`, 5, 86400e3)) return fail(req, res, 429, "Too many orders in a short time. Please WhatsApp us and we'll help.");
 
-    const r = resolveCoupon(b.code, c.phone);
+    const r = resolveCoupon(b.code || b.partnerCode, c.phone, req);
     if (r.error) return json(req, res, 422, { error: r.error, errors: { code: r.error } });
     let credits = [];
     try { credits = await collectCredits(b, req); } catch (e) { return json(req, res, 422, { error: e.message, errors: { credit: e.message } }); }
@@ -244,10 +245,6 @@ async function api(req, res, url) {
       const [id, size] = k.split("|");
       const left = catalog.stockOf(catalog.byId[id])[size] ?? 0;
       if (left < qty) return fail(req, res, 409, `Sorry, only ${left} left of ${catalog.byId[id].title} (${size}).`);
-    }
-    for (const [k, qty] of Object.entries(need)) {
-      const [id, size] = k.split("|");
-      setStock(id, size, catalog.stockOf(catalog.byId[id])[size] - qty);
     }
     const now = new Date().toISOString();
     const order = {
@@ -265,6 +262,11 @@ async function api(req, res, url) {
       total: quote.total,
       coupon: quote.coupon,
     };
+    for (const m of modules) if (m.decorateOrder) m.decorateOrder(order, ctx, req);
+    for (const [k, qty] of Object.entries(need)) {
+      const [id, size] = k.split("|");
+      setStock(id, size, catalog.stockOf(catalog.byId[id])[size] - qty);
+    }
     db.push("orders", order);
     for (const c of credits) {
       const applied = quote.credits.find((x) => x.key === c.key)?.amount || 0;
@@ -280,7 +282,7 @@ async function api(req, res, url) {
     const phone = normPhone(url.searchParams.get("phone"));
     const o = db.get("orders", []).find((x) => x.id === track[1]);
     if (!o || o.customer.phone !== phone) return fail(req, res, 404, "We couldn't find an order with that number and phone.");
-    const { customer, adminNote, ...rest } = o;
+    const { customer, adminNote, partner, ...rest } = o;
     const courier = (store().couriers || []).find((x) => x.name === o.courier);
     return json(req, res, 200, { ...rest, trackUrl: courier?.track ? courier.track.replace("{cn}", encodeURIComponent(o.tracking || "")) : null, customer: { name: customer.name, city: customer.city } });
   }

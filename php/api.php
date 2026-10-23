@@ -5,6 +5,7 @@ require_once __DIR__.'/pricing.php';
 require_once __DIR__.'/features.php';
 require_once __DIR__.'/admin.php';
 require_once __DIR__.'/notifications.php';
+if(is_file(__DIR__.'/partnerships.php')) require_once __DIR__.'/partnerships.php';
 function az_api(string $p,string $method,array $b): void {
     if(str_starts_with($p,'/api/admin/')) az_admin();
     if($p==='/api/admin/visitors'&&$method==='GET') {
@@ -13,6 +14,7 @@ function az_api(string $p,string $method,array $b): void {
         catch(Throwable $e) { az_fail(503,'Visitor counts are temporarily unavailable.'); }
         az_json(200,$counts);
     }
+    if(function_exists('az_partners_api')) az_partners_api($p,$method,$b);
     az_accounts_api($p,$method,$b); az_features_api($p,$method,$b); az_admin_api($p,$method,$b);
     if($p==='/api/catalog'&&$method==='GET') az_json(200,az_public_catalog());
     if($p==='/api/coupon'&&$method==='POST') { try { $c=az_coupon($b['code']??null,$b['phone']??null); } catch(RuntimeException $e) { az_fail(400,$e->getMessage()); } az_json(200,$c); }
@@ -31,7 +33,7 @@ function az_api(string $p,string $method,array $b): void {
     if(preg_match('~^/api/orders/([A-Z0-9]+)$~',$p,$m)&&$method==='GET') {
         $o=az_find(az_db('orders'),fn($o)=>$o['id']===$m[1]); $phone=az_phone($_GET['phone']??null);
         if(!$o||!$phone||$o['customer']['phone']!==$phone) az_fail(404,"We couldn't find an order with that number and phone.");
-        unset($o['adminNote']); $o['customer']=array_intersect_key($o['customer'],array_flip(['name','city'])); $courier=az_find(az_store()['couriers']??[],fn($c)=>$c['name']===($o['courier']??null)); $o['trackUrl']=isset($courier['track'])?str_replace('{cn}',rawurlencode($o['tracking']??''),$courier['track']):null; az_json(200,$o);
+        unset($o['adminNote'],$o['partner']); $o['customer']=array_intersect_key($o['customer'],array_flip(['name','city'])); $courier=az_find(az_store()['couriers']??[],fn($c)=>$c['name']===($o['courier']??null)); $o['trackUrl']=isset($courier['track'])?str_replace('{cn}',rawurlencode($o['tracking']??''),$courier['track']):null; az_json(200,$o);
     }
     if($p==='/api/activity'&&$method==='GET') {
         $orders=array_reverse(array_slice(array_values(array_filter(az_db('orders'),fn($o)=>az_time($o['createdAt'])>time()-259200&&$o['status']!=='cancelled')),-12)); $products=az_catalog();
@@ -61,7 +63,7 @@ function az_place_order(array $b): never {
     if(!in_array($b['payment']??'',['cod','bank','wallet'])) $errors['payment']='Choose a payment method.';
     if($errors) az_fail(422,'Please check the highlighted fields.',$errors);
     if(az_limited('order-ip:'.az_ip(),30,3600)||az_limited('order-phone:'.$phone,5,86400)) az_fail(429,"Too many orders in a short time. Please WhatsApp us and we'll help.");
-    try { $coupon=az_coupon($b['code']??null,$phone); } catch(RuntimeException $e) { az_fail(422,$e->getMessage(),['code'=>$e->getMessage()]); }
+    try { $coupon=az_coupon($b['code']??($b['partnerCode']??null),$phone); } catch(RuntimeException $e) { az_fail(422,$e->getMessage(),['code'=>$e->getMessage()]); }
     try { $credits=az_credits($b); } catch(RuntimeException $e) { az_fail(422,$e->getMessage(),['credit'=>$e->getMessage()]); }
     $q=az_price(is_array($b['items']??null)?$b['items']:[],$coupon,$credits); if(!$q['items']) az_fail(400,'Your bag is empty.');
     $rules=az_store()['cod']??[];
@@ -76,6 +78,7 @@ function az_place_order(array $b): never {
     foreach($need as $key=>$qty) { [$id,$size]=explode('|',$key,2); az_stock($id,$size,$products[$id]['stock'][$size]-$qty); }
     $o=['id'=>'AZ'.strtoupper(substr(base_convert((string)(int)(microtime(true)*1000),10,36),-6)).random_int(10,99),'createdAt'=>az_now(),'status'=>'placed','history'=>[['status'=>'placed','at'=>az_now()]],'payment'=>$b['payment'],'customer'=>['name'=>az_clean($c['name'],80),'phone'=>$phone,'email'=>az_clean($c['email']??'',120),'city'=>az_clean($c['city'],60),'address'=>az_clean($c['address'],500),'notes'=>az_clean($c['notes']??'',500)],'items'=>array_map(fn($i)=>array_intersect_key($i,array_flip(['id','title','image','size','qty','unit','line','addons','meta'])),$q['items'])];
     foreach(['subtotal','discounts','shipping','credits','total','coupon'] as $k) $o[$k]=$q[$k];
+    if(function_exists('az_partner_attach')) az_partner_attach($o);
     az_push('orders',$o); az_order_created($o,$credits);
     $GLOBALS['az_after'][]=fn()=>az_notify($o,'placed');
     az_json(201,array_intersect_key($o,array_flip(['id','total','payment'])));

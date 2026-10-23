@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 function az_coupon($raw,$phone=null): ?array {
+    if(!$raw && function_exists('az_partner_cookie_code')) $raw=az_partner_cookie_code();
     if(!$raw) return null;
     $code=strtoupper(trim((string)$raw)); $s=az_store(); $c=$s['coupons'][$code]??null;
     if(!$c) { $saved=az_find(az_db('coupons'),fn($v)=>$v['code']===$code); if($saved && az_coupon_state($saved)==='active') $c=$saved; }
+    if(!$c && function_exists('az_partner_coupon')) $c=az_partner_coupon($code);
     if(!$c) throw new RuntimeException("That code isn't valid.");
     if($code===($s['launchOffer']['code']??'') && time()>az_time($s['launchOffer']['endsAt']??null)) throw new RuntimeException('This launch offer has ended.');
     if(!empty($c['firstOrderOnly']) && ($p=az_phone($phone)) && az_find(az_db('orders'),fn($o)=>$o['customer']['phone']===$p&&$o['status']!=='cancelled')) throw new RuntimeException('This code is for first orders only.');

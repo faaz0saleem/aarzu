@@ -72,18 +72,25 @@ async function regressionChecks(files, report = console.log) {
     const form = { elements: { namedItem: name => fields[name] } };
     const cod = { checked: true }, label = { classList: { toggle() {} } };
     const nodes = { "#co": form, "#place": button, "#summary": summary, "#eta": eta, "#cod-note": note, "#cpn": coupon, '[data-pay="cod"] input': cod, '[data-pay="cod"]': label };
-    let cleared = 0, calls = 0; const navigation = [], notices = [];
-    const quote = () => ({ items: [{ id: "AZ-P", title: "Lawn suit", image: "", size: "M", qty: 1, line: 4000 }], subtotal: 4000, discounts: [], credits: [], shipping: 0, total: 4000, savings: 1000 });
+    let cleared = 0, calls = 0, pricingReads = 0, subscriber = null; const navigation = [], notices = [];
+    const quote = () => (pricingReads++, { items: [{ id: "AZ-P", title: "Lawn suit", image: "", size: "M", qty: 1, line: 4000 }], subtotal: 4000, discounts: [], credits: [], shipping: 0, total: 4000, savings: 1000 });
     const blocked = { getItem() { throw Error("Storage blocked"); }, setItem() { throw Error("Storage blocked"); } };
     const checkout = factory({
-      $: s => nodes[s] || null, $$: () => [], state, quote, icon: () => "", esc: String, rs: String, img: String,
+      $: s => nodes[s] || null, $$: () => [], state, quote, on: fn => { subscriber = fn; return () => { subscriber = null; }; }, icon: () => "", esc: String, rs: String, img: String,
       lineExtras: () => "", fillSlots() {}, dispatchInfo: () => ({ eta: "3 days" }),
       localStorage: blocked, sessionStorage: blocked, api: async (_path, body) => { calls++; assert.equal(body.website, undefined); assert.equal(body.orderGuard, ""); return result(); },
       clearCart() { cleared++; state.cart = []; }, setCoupon() {}, setCredit() {}, toast: m => notices.push(m)
     }, checkoutCode, "checkout");
-    checkout(main, { go: path => navigation.push(path) });
-    return { state, button, navigation, notices, cleared: () => cleared, calls: () => calls, submit: () => form.onsubmit({ preventDefault() {} }) };
+    const cleanup = checkout(main, { go: path => navigation.push(path) });
+    return { state, button, navigation, notices, cleanup, pricingReads: () => pricingReads, referralDiscount: () => subscriber?.("partner-discount"), cleared: () => cleared, calls: () => calls, submit: () => form.onsubmit({ preventDefault() {} }) };
   }
+  const delayedReferral = checkoutFixture(() => ({}));
+  const beforeReferral = delayedReferral.pricingReads();
+  delayedReferral.referralDiscount();
+  assert.equal(delayedReferral.pricingReads(), beforeReferral + 1, "A late creator discount must update the visible checkout summary");
+  delayedReferral.cleanup();
+  delayedReferral.referralDiscount();
+  assert.equal(delayedReferral.pricingReads(), beforeReferral + 1, "Leaving checkout must remove its repricing listener");
   const unconfirmed = checkoutFixture(() => ({}));
   await unconfirmed.submit();
   assert.equal(unconfirmed.cleared(), 0);
