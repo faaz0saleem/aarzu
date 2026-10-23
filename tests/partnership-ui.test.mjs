@@ -9,7 +9,7 @@ assert.equal(payoutDue('2026-10-23T06:00:00Z',2),'2026-10-27T18:59:59.999Z');
 assert.equal(payoutDue('2026-10-22T06:00:00Z',2),'2026-10-26T18:59:59.999Z');
 assert.equal(payoutDue('invalid',2),null);assert(publicHeader().includes('Creator sign in'));assert(publicExtras().includes('data-earnings-calculator'));assert(publicExtras().includes('2 working days'));assert(creatorCaption({code:'AZP1234567890'}).includes('Affiliate disclosure'));assert(creatorCaption({code:'AZP1234567890'}).includes('utm_source=youtube'));
 const data={partner:{name:'Ayesha <script>alert(1)</script>',status:'active',code:'AZP1234567890'},program:JSON.parse(fs.readFileSync(new URL('data/partner-program.json',root))),totals:{available:6000,pending:1200,reserved:0,paid:2400,visits:120,orders:8,adjustment:0},entries:[],payouts:[]};
-let html=dashboardHTML(data,'payouts');assert(html.includes('data-payout'));assert(html.includes('2 working days'));assert(!html.includes('<script>'));assert(!html.includes('fixture-buyer')); 
+let html=dashboardHTML(data,'payouts');assert(html.includes('azw-shell'));assert(!/class="[^"]*\bad-/.test(html));assert(html.includes('data-payout'));assert(html.includes('2 working days'));assert(!html.includes('<script>'));assert(!html.includes('fixture-buyer')); 
 for(const patch of [{available:4999},{reserved:6000}]){const blocked=structuredClone(data);Object.assign(blocked.totals,patch);assert(!dashboardHTML(blocked,'payouts').includes('<form data-payout'));}
 const pending=structuredClone(data);pending.partner.status='pending';assert(!dashboardHTML(pending,'payouts').includes('<form data-payout'));
 data.payouts=[{amount:6000,status:'requested',bankName:'Fixture bank',accountTitle:'Fixture creator',accountLast4:'1234',createdAt:'2026-10-23T06:00:00Z'}];

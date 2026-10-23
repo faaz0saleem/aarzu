@@ -49,6 +49,7 @@ async function runAdminChecks(files, { assert, Buffer, crypto, report }) {
   const successful = fixture(path => path === "/api/admin/orders" ? [] : { revenue: 0, orders: 0, pending: 0, waitlist: 0, newsletter: 0 });
   await successful.submit();
   assert(successful.main.innerHTML.includes("Dashboard"));
+  assert(!/class="[^"]*\bad-/.test(successful.main.innerHTML));
   assert.equal(successful.state.adminPassword, secret);
   assert(successful.requests.every(r => r.auth["X-Aarzu-Admin"] === secret));
   await successful.main.onclick({ target: { closest: s => s === "#out" ? {} : null } });
