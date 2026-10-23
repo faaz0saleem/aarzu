@@ -58,6 +58,7 @@ try {
   for (const p of ["/index.html", "/shop/"]) assert.equal((await get(p)).status, 301);
   assert.equal((await get("/checkout")).headers.get("x-robots-tag"), "noindex, follow");
   assert.equal((await get("/api/catalog")).headers.get("x-robots-tag"), "noindex");
+  r=await get('/products.xml');assert.equal(r.status,200);const feed=await r.text();assert(feed.includes('<g:id>'+product.id+'</g:id>'));assert.equal(r.headers.get('cache-control'),'no-cache');
   r = await get("/robots.txt"); assert.equal(r.headers.get("cache-control"), "no-cache"); assert((await r.text()).includes("Allow: /api/catalog$"));
   r = await get("/robots.txt", "admin.aarzu.test"); assert.equal(await r.text(), "User-agent: *\nDisallow: /\n");
   r = await get("/sitemap.xml"); assert.equal(r.headers.get("cache-control"), "no-cache"); const xml = await r.text();

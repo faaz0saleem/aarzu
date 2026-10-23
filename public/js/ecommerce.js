@@ -1,0 +1,6 @@
+// Only product/order totals enter analytics. Never send customer details or measurements.
+const number=x=>Number.isFinite(Number(x))?Math.max(0,Number(x)):0;
+const rounded=x=>Math.round(x*100)/100;
+export function ecommerceItems(lines=[],products={},ratio=1){return lines.filter(l=>l&&typeof l.id==='string'&&number(l.qty)>0).map(l=>{const p=products[l.id]||{};return{item_id:l.id.slice(0,80),item_name:String(l.title||p.title||l.id).slice(0,150),item_category:String(p.category||'clothing'),item_variant:String(l.size||'').slice(0,80),price:rounded(number(l.unit??p.price)*ratio),quantity:Math.floor(number(l.qty))};});}
+export function checkoutPayload(q,products={}){const base=number(q?.subtotal),value=rounded(Math.max(0,number(q?.total)-number(q?.shipping)));return{currency:'PKR',value,items:ecommerceItems(q?.items||[],products,base?Math.min(1,value/base):1)};}
+export function purchasePayload(o,products={}){if(!o||!/^AZ[A-Z0-9]+$/.test(o.id||'')||!Number.isFinite(o.total)||o.total<0||!o.quote?.items?.length)return null;const p=checkoutPayload({...o.quote,total:o.total},products);return p.items.length?{...p,transaction_id:o.id,shipping:number(o.quote.shipping),...(typeof o.quote.coupon==='string'?{coupon:o.quote.coupon.slice(0,40)}:{})}:null;}

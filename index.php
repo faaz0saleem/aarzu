@@ -5,6 +5,7 @@ require __DIR__ . '/php/bootstrap.php';
 try {
     $path = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
     if (str_contains($path, "\0") || preg_match('~(?:^|/)\.(?:\.?/|[^/])~', $path)) az_text(404, 'Not found');
+    if (in_array($path, ['/products.xml','/google-products.xml'], true) && is_file(__DIR__.'/php/product-feed.php')) { require __DIR__.'/php/product-feed.php'; az_product_feed(); }
     if ($path === '/api/visitors') {
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') az_fail(405, 'Use POST for visitor activity.');
         if ((int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 1024) az_fail(413, 'Payload too large');
