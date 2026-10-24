@@ -13,7 +13,7 @@ export function init(){
   const ga=(event,payload)=>{try{if(ga4Id)window.gtag?.('event',event,{...payload,send_to:ga4Id});}catch{}};
   const fb=(event,payload)=>{try{if(metaPixelId)window.fbq?.('track',event,payload);}catch{}};
   const seen=new Set();
-  const purchase=()=>{if(privatePage(new URL(location.href)))return;const p=purchasePayload(state.lastOrder,state.byId);if(!p||seen.has(p.transaction_id))return;try{if(sessionStorage.getItem('az_purchase_'+p.transaction_id))return;}catch{}seen.add(p.transaction_id);ga('purchase',p);fb('Purchase',{currency:'PKR',value:p.value,content_type:'product',content_ids:p.items.map(i=>i.item_id)});try{sessionStorage.setItem('az_purchase_'+p.transaction_id,'1');}catch{}};
+  const purchase=()=>{if(privatePage(new URL(location.href)))return;const p=purchasePayload(state.lastOrder,state.byId);if(!p||seen.has(p.transaction_id))return;try{if(sessionStorage.getItem('az_purchase_'+p.transaction_id))return;}catch{}seen.add(p.transaction_id);ga('purchase',p);try{window.gtag?.('event','conversion',{send_to:'AW-18531339896/D8s1CJbF6KcdEPict4RF',value:p.value,currency:p.currency,transaction_id:p.transaction_id});}catch{}fb('Purchase',{currency:'PKR',value:p.value,content_type:'product',content_ids:p.items.map(i=>i.item_id)});try{sessionStorage.setItem('az_purchase_'+p.transaction_id,'1');}catch{}};
   registerRouteHook(url=>{try{if(privatePage(url))return;
     // The existing head tag owns automatic page views. Reuse its loader and configuration.
     if(!headConfigured)ga('page_view',{page_location:url.origin+url.pathname,page_title:document.title});fb('PageView');
